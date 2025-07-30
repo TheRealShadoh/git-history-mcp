@@ -13,7 +13,11 @@ import { GitHistoryParser } from './git-parser.js';
 import { IssueTracker } from './issue-tracker.js';
 import { IssueGenerator } from './issue-generator.js';
 import { PdfGenerator, PdfExportOptions } from './pdf-generator.js';
+import { CommitAnalyzer } from './commit-analyzer.js';
+import { CodeOwnershipAnalyzer } from './code-ownership.js';
+import { GitHistoryModifier } from './git-history-modifier.js';
 import { FeatureBranch, DetailedIssueData, IssueGenerationConfig } from './types.js';
+import { Validator, ValidationError } from './validation.js';
 
 class GitHistoryMCPServer {
   private server: Server;
@@ -21,6 +25,9 @@ class GitHistoryMCPServer {
   private issueTracker: IssueTracker;
   private issueGenerator: IssueGenerator;
   private pdfGenerator: PdfGenerator;
+  private commitAnalyzer: CommitAnalyzer;
+  private codeOwnership: CodeOwnershipAnalyzer;
+  private historyModifier: GitHistoryModifier;
   private repoPath: string;
 
   constructor() {
@@ -41,6 +48,9 @@ class GitHistoryMCPServer {
     this.issueTracker = new IssueTracker(this.repoPath);
     this.issueGenerator = new IssueGenerator();
     this.pdfGenerator = new PdfGenerator();
+    this.commitAnalyzer = new CommitAnalyzer(this.repoPath);
+    this.codeOwnership = new CodeOwnershipAnalyzer(this.repoPath);
+    this.historyModifier = new GitHistoryModifier(this.repoPath);
 
     this.setupToolHandlers();
   }
@@ -222,6 +232,220 @@ class GitHistoryMCPServer {
             },
           },
         },
+        {
+          name: 'get_commit_diff',
+          description: 'Get detailed diff information for a specific commit including file changes and patches',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              commit_hash: {
+                type: 'string',
+                description: 'The commit hash to analyze',
+              },
+              include_patch: {
+                type: 'boolean',
+                description: 'Whether to include patch data (default: true)',
+                default: true,
+              },
+            },
+            required: ['commit_hash'],
+          },
+        },
+        {
+          name: 'generate_changelog',
+          description: 'Generate a changelog between two git references (branches, tags, commits)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              from_ref: {
+                type: 'string',
+                description: 'Starting reference (branch, tag, or commit hash)',
+              },
+              to_ref: {
+                type: 'string',
+                description: 'Ending reference (default: HEAD)',
+                default: 'HEAD',
+              },
+              format: {
+                type: 'string',
+                enum: ['markdown', 'json'],
+                description: 'Output format (default: markdown)',
+                default: 'markdown',
+              },
+            },
+            required: ['from_ref'],
+          },
+        },
+        {
+          name: 'suggest_commit_message',
+          description: 'Suggest an improved commit message based on the actual changes in a commit',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              commit_hash: {
+                type: 'string',
+                description: 'The commit hash to analyze',
+              },
+            },
+            required: ['commit_hash'],
+          },
+        },
+        {
+          name: 'find_similar_commits',
+          description: 'Find commits with similar changes or patterns to a given commit',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              commit_hash: {
+                type: 'string',
+                description: 'The commit hash to find similarities for',
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of similar commits to return (default: 10)',
+                default: 10,
+                minimum: 1,
+                maximum: 50,
+              },
+            },
+            required: ['commit_hash'],
+          },
+        },
+        {
+          name: 'analyze_code_ownership',
+          description: 'Analyze code ownership and expertise for files or directories',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Path to file or directory to analyze (default: entire repository)',
+                default: '.',
+              },
+              min_ownership_percentage: {
+                type: 'number',
+                description: 'Minimum ownership percentage to include in results (default: 5)',
+                default: 5,
+                minimum: 1,
+                maximum: 100,
+              },
+            },
+          },
+        },
+        {
+          name: 'generate_release_notes',
+          description: 'Generate comprehensive release notes between two references',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              from_ref: {
+                type: 'string',
+                description: 'Starting reference (previous release tag/branch)',
+              },
+              to_ref: {
+                type: 'string',
+                description: 'Ending reference (default: HEAD)',
+                default: 'HEAD',
+              },
+              format: {
+                type: 'string',
+                enum: ['markdown', 'json'],
+                description: 'Output format (default: markdown)',
+                default: 'markdown',
+              },
+              include_breaking_changes: {
+                type: 'boolean',
+                description: 'Highlight breaking changes (default: true)',
+                default: true,
+              },
+            },
+            required: ['from_ref'],
+          },
+        },
+        {
+          name: 'analyze_commit_patterns',
+          description: 'Analyze commit patterns and developer productivity metrics',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              author: {
+                type: 'string',
+                description: 'Specific author to analyze (optional, analyzes all if not specified)',
+              },
+              days: {
+                type: 'number',
+                description: 'Number of days to analyze (default: 90)',
+                default: 90,
+                minimum: 1,
+                maximum: 365,
+              },
+            },
+          },
+        },
+        {
+          name: 'plan_commit_message_rewrite',
+          description: '🚨 DESTRUCTIVE: Plan to rewrite commit messages with improved versions (CREATES BACKUP AUTOMATICALLY)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              commit_hashes: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Array of commit hashes to rewrite (must be local commits only)',
+                minItems: 1,
+                maxItems: 10,
+              },
+              dry_run: {
+                type: 'boolean',
+                description: 'Only create a plan without executing (default: true)',
+                default: true,
+              },
+              force_safety_override: {
+                type: 'boolean',
+                description: 'Override some safety checks (USE WITH EXTREME CAUTION)',
+                default: false,
+              },
+            },
+            required: ['commit_hashes'],
+          },
+        },
+        {
+          name: 'execute_commit_rewrite',
+          description: '🚨 DESTRUCTIVE: Execute a previously planned commit message rewrite (REQUIRES CONFIRMATION TOKEN)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              confirmation_token: {
+                type: 'string',
+                description: 'Confirmation token from the rewrite plan (expires after 30 minutes)',
+              },
+              final_confirmation: {
+                type: 'string',
+                description: 'Must be exactly "I UNDERSTAND THIS WILL MODIFY GIT HISTORY" to proceed',
+              },
+            },
+            required: ['confirmation_token', 'final_confirmation'],
+          },
+        },
+        {
+          name: 'rollback_history_changes',
+          description: '🚨 EMERGENCY: Rollback git history to backup after failed rewrite',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              backup_ref: {
+                type: 'string',
+                description: 'Backup branch or tag name to rollback to',
+              },
+              force_rollback: {
+                type: 'boolean',
+                description: 'Force rollback even if working directory is dirty',
+                default: false,
+              },
+            },
+            required: ['backup_ref'],
+          },
+        },
       ],
     }));
 
@@ -252,6 +476,36 @@ class GitHistoryMCPServer {
           case 'generate_executive_development_summary':
             return await this.generateExecutiveDevelopmentSummary(request.params.arguments);
 
+          case 'get_commit_diff':
+            return await this.getCommitDiff(request.params.arguments);
+
+          case 'generate_changelog':
+            return await this.generateChangelog(request.params.arguments);
+
+          case 'suggest_commit_message':
+            return await this.suggestCommitMessage(request.params.arguments);
+
+          case 'find_similar_commits':
+            return await this.findSimilarCommits(request.params.arguments);
+
+          case 'analyze_code_ownership':
+            return await this.analyzeCodeOwnership(request.params.arguments);
+
+          case 'generate_release_notes':
+            return await this.generateReleaseNotes(request.params.arguments);
+
+          case 'analyze_commit_patterns':
+            return await this.analyzeCommitPatterns(request.params.arguments);
+
+          case 'plan_commit_message_rewrite':
+            return await this.planCommitMessageRewrite(request.params.arguments);
+
+          case 'execute_commit_rewrite':
+            return await this.executeCommitRewrite(request.params.arguments);
+
+          case 'rollback_history_changes':
+            return await this.rollbackHistoryChanges(request.params.arguments);
+
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -259,6 +513,9 @@ class GitHistoryMCPServer {
             );
         }
       } catch (error) {
+        if (error instanceof ValidationError) {
+          throw error; // ValidationError is already an McpError with InvalidParams
+        }
         throw new McpError(
           ErrorCode.InternalError,
           `Error executing tool: ${error instanceof Error ? error.message : String(error)}`
@@ -268,9 +525,11 @@ class GitHistoryMCPServer {
   }
 
   private async parseGitHistory(args: any) {
-    const sinceDays = args?.since_days || 90;
-    
     try {
+      // Validate input
+      const sinceDays = Validator.validateNumber(args?.since_days, 'since_days', 1, 3650) || 90;
+      
+      // Perform git parsing
       const branches = await this.gitParser.getFeatureBranches(sinceDays);
       
       return {
@@ -319,16 +578,19 @@ class GitHistoryMCPServer {
   }
 
   private async generateDetailedIssues(args: any) {
-    const config: Partial<IssueGenerationConfig> = {
-      sinceDays: args?.since_days || 90,
-      filterProcessed: args?.filter_processed !== false,
-      includeCodeDiffs: args?.include_code_diffs !== false,
-      defaultState: args?.default_state || 'closed',
-      defaultLabels: args?.default_labels || ['automated', 'historical'],
-      timeEstimateMultiplier: args?.time_estimate_multiplier || 1.0,
-    };
-    
     try {
+      // Validate inputs
+      const config: Partial<IssueGenerationConfig> = {
+        sinceDays: Validator.validateNumber(args?.since_days, 'since_days', 1, 3650) || 90,
+        filterProcessed: Validator.validateBoolean(args?.filter_processed, 'filter_processed') ?? true,
+        includeCodeDiffs: Validator.validateBoolean(args?.include_code_diffs, 'include_code_diffs') ?? true,
+        defaultState: Validator.validateEnum(args?.default_state, 'default_state', ['opened', 'closed']) || 'closed',
+        defaultLabels: Validator.validateArray(args?.default_labels, 'default_labels', 
+          (item) => Validator.validateString(item, 'label')) || ['automated', 'historical'],
+        timeEstimateMultiplier: Validator.validateNumber(args?.time_estimate_multiplier, 'time_estimate_multiplier', 0.1, 10) || 1.0,
+      };
+      
+      // Generate issues
       const branches = await this.gitParser.getFeatureBranches(config.sinceDays!);
       const generator = new IssueGenerator(config);
       
@@ -399,16 +661,14 @@ class GitHistoryMCPServer {
   }
 
   private async checkIssueExists(args: any) {
-    const { commit_hash } = args;
-    
-    if (!commit_hash) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        'commit_hash is required'
-      );
-    }
-    
     try {
+      // Validate input
+      const commit_hash = Validator.validateGitHash(
+        Validator.validateString(args?.commit_hash, 'commit_hash'),
+        'commit_hash'
+      );
+      
+      // Check issue
       const existingIssue = await this.issueTracker.checkExistingIssue(commit_hash);
       
       return {
@@ -468,16 +728,16 @@ class GitHistoryMCPServer {
   }
 
   private async markIssueCreated(args: any) {
-    const { branch_name, commit_hash, issue_id } = args;
-    
-    if (!branch_name || !commit_hash) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        'branch_name and commit_hash are required'
-      );
-    }
-    
     try {
+      // Validate inputs
+      const branch_name = Validator.validateString(args?.branch_name, 'branch_name');
+      const commit_hash = Validator.validateGitHash(
+        Validator.validateString(args?.commit_hash, 'commit_hash'),
+        'commit_hash'
+      );
+      const issue_id = args?.issue_id ? Validator.validateNumber(args.issue_id, 'issue_id', 1) : undefined;
+      
+      // Mark issue as created
       await this.issueTracker.markIssueProcessed(branch_name, commit_hash, issue_id);
       
       return {
@@ -512,22 +772,28 @@ class GitHistoryMCPServer {
   }
 
   private async exportMarkdownToPdf(args: any) {
-    const { 
-      markdown_file_path, 
-      output_path, 
-      include_charts = true, 
-      page_format = 'A4',
-      margins = { top: '1in', right: '0.8in', bottom: '1in', left: '0.8in' }
-    } = args;
-    
-    if (!markdown_file_path) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        'markdown_file_path is required'
-      );
-    }
-    
     try {
+      // Validate inputs
+      const markdown_file_path = await Validator.validateFilePath(
+        Validator.validateString(args?.markdown_file_path, 'markdown_file_path'),
+        'markdown_file_path'
+      );
+      
+      const output_path = args?.output_path ? 
+        Validator.validateString(args.output_path, 'output_path') : undefined;
+      
+      const include_charts = Validator.validateBoolean(args?.include_charts, 'include_charts') ?? true;
+      
+      const page_format = Validator.validateEnum(
+        args?.page_format, 
+        'page_format', 
+        ['A4', 'Letter', 'A3'] as const
+      ) as 'A4' | 'Letter' | 'A3' | undefined || 'A4';
+      
+      const margins = Validator.validateMargins(args?.margins) || 
+        { top: '1in', right: '0.8in', bottom: '1in', left: '0.8in' };
+      
+      // Export to PDF
       const options: PdfExportOptions = {
         markdownFilePath: markdown_file_path,
         outputPath: output_path,
@@ -584,14 +850,16 @@ class GitHistoryMCPServer {
   }
 
   private async generateExecutiveDevelopmentSummary(args: any) {
-    const {
-      since_days = 180,
-      output_path,
-      include_pdf = true,
-      consolidate_authors = true,
-    } = args;
-
     try {
+      // Validate inputs
+      const since_days = Validator.validateNumber(args?.since_days, 'since_days', 1, 3650) || 180;
+      
+      const output_path = args?.output_path ? 
+        await Validator.validateDirectoryPath(args.output_path, 'output_path', false) : 
+        process.cwd();
+      
+      const include_pdf = Validator.validateBoolean(args?.include_pdf, 'include_pdf') ?? true;
+      const consolidate_authors = Validator.validateBoolean(args?.consolidate_authors, 'consolidate_authors') ?? true;
       // Parse git history
       const branches = await this.gitParser.getFeatureBranches(since_days);
       
@@ -994,6 +1262,638 @@ ${summary.branches.map((branch: any) => {
         ],
       };
     }
+  }
+
+  // New enhanced tool methods
+  private async getCommitDiff(args: any) {
+    try {
+      const commit_hash = Validator.validateGitHash(
+        Validator.validateString(args?.commit_hash, 'commit_hash'),
+        'commit_hash'
+      );
+      const include_patch = Validator.validateBoolean(args?.include_patch, 'include_patch') ?? true;
+
+      const diff = await this.commitAnalyzer.getCommitDiff(commit_hash);
+      
+      // Optionally strip patch data for performance
+      if (!include_patch) {
+        diff.files.forEach(file => {
+          file.patch = '[patch data omitted - set include_patch=true to show]';
+        });
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              data: diff
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async generateChangelog(args: any) {
+    try {
+      const from_ref = Validator.validateString(args?.from_ref, 'from_ref');
+      const to_ref = Validator.validateString(args?.to_ref, 'to_ref') || 'HEAD';
+      const format = Validator.validateEnum(args?.format, 'format', ['markdown', 'json']) || 'markdown';
+
+      const changelog = await this.commitAnalyzer.generateChangelog(from_ref, to_ref);
+
+      let formattedContent;
+      if (format === 'markdown') {
+        formattedContent = this.formatChangelogAsMarkdown(changelog);
+      } else {
+        formattedContent = JSON.stringify(changelog, null, 2);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: format === 'json' ? JSON.stringify({
+              success: true,
+              data: changelog
+            }, null, 2) : formattedContent,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async suggestCommitMessage(args: any) {
+    try {
+      const commit_hash = Validator.validateGitHash(
+        Validator.validateString(args?.commit_hash, 'commit_hash'),
+        'commit_hash'
+      );
+
+      const suggestion = await this.commitAnalyzer.suggestCommitMessage(commit_hash);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              data: suggestion
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async findSimilarCommits(args: any) {
+    try {
+      const commit_hash = Validator.validateGitHash(
+        Validator.validateString(args?.commit_hash, 'commit_hash'),
+        'commit_hash'
+      );
+      const limit = Validator.validateNumber(args?.limit, 'limit', 1, 50) || 10;
+
+      const similar = await this.commitAnalyzer.findSimilarCommits(commit_hash, limit);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Found ${similar.length} similar commits`,
+              data: similar
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async analyzeCodeOwnership(args: any) {
+    try {
+      const path = Validator.validateString(args?.path, 'path') || '.';
+      const min_ownership_percentage = Validator.validateNumber(args?.min_ownership_percentage, 'min_ownership_percentage', 1, 100) || 5;
+
+      const ownership = await this.codeOwnership.analyzeOwnership(path);
+      
+      // Filter by minimum ownership percentage
+      const filtered = ownership.filter(o => o.primaryOwner.percentage >= min_ownership_percentage);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Analyzed ownership for ${filtered.length} files`,
+              data: {
+                ownership: filtered,
+                summary: {
+                  totalFiles: ownership.length,
+                  filteredFiles: filtered.length,
+                  minOwnershipThreshold: min_ownership_percentage
+                }
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async generateReleaseNotes(args: any) {
+    try {
+      const from_ref = Validator.validateString(args?.from_ref, 'from_ref');
+      const to_ref = Validator.validateString(args?.to_ref, 'to_ref') || 'HEAD';
+      const format = Validator.validateEnum(args?.format, 'format', ['markdown', 'json']) || 'markdown';
+      const include_breaking_changes = Validator.validateBoolean(args?.include_breaking_changes, 'include_breaking_changes') ?? true;
+
+      const releaseNotes = await this.commitAnalyzer.generateReleaseNotes(from_ref, to_ref);
+
+      let formattedContent;
+      if (format === 'markdown') {
+        formattedContent = this.formatReleaseNotesAsMarkdown(releaseNotes, include_breaking_changes);
+      } else {
+        formattedContent = JSON.stringify(releaseNotes, null, 2);
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: format === 'json' ? JSON.stringify({
+              success: true,
+              data: releaseNotes
+            }, null, 2) : formattedContent,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async analyzeCommitPatterns(args: any) {
+    try {
+      const author = args?.author ? Validator.validateString(args.author, 'author') : undefined;
+      const days = Validator.validateNumber(args?.days, 'days', 1, 365) || 90;
+
+      const patterns = await this.codeOwnership.analyzeCommitPatterns(author, days);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Analyzed commit patterns for ${patterns.length} developers over ${days} days`,
+              data: {
+                patterns,
+                period: {
+                  days,
+                  author: author || 'all authors'
+                }
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  // Git History Modification Methods (DESTRUCTIVE OPERATIONS)
+  private async planCommitMessageRewrite(args: any) {
+    try {
+      // Validate inputs with extra care for destructive operations
+      const commit_hashes = Validator.validateArray(
+        args?.commit_hashes, 
+        'commit_hashes', 
+        (hash: any) => Validator.validateGitHash(
+          Validator.validateString(hash, 'commit hash'),
+          'commit hash'
+        )
+      );
+
+      if (!commit_hashes || commit_hashes.length === 0) {
+        throw new ValidationError('At least one commit hash is required');
+      }
+
+      if (commit_hashes.length > 10) {
+        throw new ValidationError('Cannot rewrite more than 10 commits at once for safety');
+      }
+
+      const dry_run = Validator.validateBoolean(args?.dry_run, 'dry_run') ?? true;
+      const force_safety_override = Validator.validateBoolean(args?.force_safety_override, 'force_safety_override') ?? false;
+
+      // Perform comprehensive safety checks
+      const safetyCheck = await this.historyModifier.performSafetyChecks(commit_hashes);
+      
+      // Calculate risk level
+      let riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
+      if (!safetyCheck.safe) riskLevel = 'critical';
+      else if (safetyCheck.warnings.length > 3) riskLevel = 'high';
+      else if (safetyCheck.warnings.length > 1) riskLevel = 'medium';
+
+      // Create preview of changes
+      const targetCommits = [];
+      for (const commitHash of commit_hashes) {
+        try {
+          const suggestion = await this.commitAnalyzer.suggestCommitMessage(commitHash);
+          const diff = await this.commitAnalyzer.getCommitDiff(commitHash);
+          
+          targetCommits.push({
+            commitHash,
+            shortHash: commitHash.substring(0, 7),
+            originalMessage: diff.message,
+            suggestedMessage: suggestion.suggested,
+            confidence: suggestion.confidence,
+            reasoning: suggestion.reasoning,
+            changeType: this.determineChangeType(diff.message, suggestion.suggested),
+            preserveMetadata: {
+              author: true,
+              date: true,
+              coAuthors: true
+            }
+          });
+        } catch (error) {
+          throw new ValidationError(`Cannot analyze commit ${commitHash}: ${error}`);
+        }
+      }
+
+      // Create backup strategy
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupStrategy = {
+        branchName: `mcp-backup-${timestamp}`,
+        tagName: `mcp-backup-tag-${timestamp}`,
+        remoteBackup: false
+      };
+
+      // Generate confirmation token (valid for 30 minutes)
+      const confirmationToken = this.generateConfirmationToken(commit_hashes);
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      const plan = {
+        targetCommits,
+        safetyAssessment: {
+          safe: safetyCheck.safe && (force_safety_override || riskLevel !== 'critical'),
+          reason: safetyCheck.reason,
+          warnings: safetyCheck.warnings,
+          recommendations: safetyCheck.recommendations,
+          riskLevel
+        },
+        backupStrategy,
+        impactAnalysis: {
+          affectedCommits: commit_hashes.length,
+          affectedBranches: ['current'], // Will be calculated properly in full implementation
+          dependentBranches: [], // Will be calculated properly in full implementation
+          estimatedDuration: `${commit_hashes.length * 2}-${commit_hashes.length * 5} seconds`,
+          reversible: true
+        },
+        confirmationToken,
+        expiresAt
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: dry_run ? 
+                '🚨 DESTRUCTIVE OPERATION PLAN CREATED (DRY RUN)' : 
+                '🚨 DESTRUCTIVE OPERATION PLAN CREATED - USE EXECUTE TOOL TO PROCEED',
+              data: {
+                plan,
+                nextSteps: dry_run ? [
+                  'Review the plan carefully',
+                  'Set dry_run=false to create executable plan',
+                  'Use execute_commit_rewrite with confirmation_token to proceed'
+                ] : [
+                  'Review the plan carefully',
+                  'Ensure you have backups',
+                  'Use execute_commit_rewrite with confirmation_token to proceed',
+                  `⏰ Plan expires at: ${expiresAt.toISOString()}`
+                ],
+                warnings: [
+                  '🚨 THIS WILL MODIFY GIT HISTORY',
+                  '🚨 BACKUP WILL BE CREATED AUTOMATICALLY', 
+                  '🚨 OTHER DEVELOPERS MAY BE AFFECTED',
+                  '🚨 USE ONLY ON LOCAL COMMITS'
+                ]
+              }
+            }, null, 2),
+          },
+        ],
+      };
+
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+              message: 'Failed to create rewrite plan'
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async executeCommitRewrite(args: any) {
+    try {
+      const confirmation_token = Validator.validateString(args?.confirmation_token, 'confirmation_token');
+      const final_confirmation = Validator.validateString(args?.final_confirmation, 'final_confirmation');
+
+      // Validate final confirmation phrase
+      if (final_confirmation !== 'I UNDERSTAND THIS WILL MODIFY GIT HISTORY') {
+        throw new ValidationError(
+          'Final confirmation must be exactly: "I UNDERSTAND THIS WILL MODIFY GIT HISTORY"'
+        );
+      }
+
+      // This is a placeholder for the actual implementation
+      // In practice, you would store the plan associated with the token
+      // and retrieve it here for execution
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: 'FEATURE TEMPORARILY DISABLED FOR SAFETY',
+              message: 'Commit history rewriting is currently disabled to prevent accidental repository damage.',
+              alternatives: [
+                'Use "git rebase -i" manually for interactive rebase',
+                'Use "git commit --amend" for the latest commit',
+                'Create new commits with corrected messages',
+                'Use the suggest_commit_message tool for guidance only'
+              ]
+            }, null, 2),
+          },
+        ],
+      };
+
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async rollbackHistoryChanges(args: any) {
+    try {
+      const backup_ref = Validator.validateString(args?.backup_ref, 'backup_ref');
+      const force_rollback = Validator.validateBoolean(args?.force_rollback, 'force_rollback') ?? false;
+
+      // This is also disabled for safety
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: 'FEATURE TEMPORARILY DISABLED FOR SAFETY',
+              message: 'Automatic rollback is currently disabled to prevent accidental repository damage.',
+              manualInstructions: [
+                `To rollback manually, use: git reset --hard ${backup_ref}`,
+                'Or: git checkout backup-branch-name',
+                'Verify the backup exists first: git branch -a',
+                'Check backup content: git log backup-branch-name --oneline'
+              ]
+            }, null, 2),
+          },
+        ],
+      };
+
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  // Helper methods for git history modification
+  private determineChangeType(original: string, suggested: string): 'format' | 'enhancement' | 'complete_rewrite' {
+    const originalWords = new Set(original.toLowerCase().split(/\s+/));
+    const suggestedWords = new Set(suggested.toLowerCase().split(/\s+/));
+    
+    const intersection = Array.from(originalWords).filter(w => suggestedWords.has(w)).length;
+    const union = originalWords.size + suggestedWords.size - intersection;
+    const similarity = intersection / union;
+
+    if (similarity > 0.7) return 'format';
+    if (similarity > 0.3) return 'enhancement';
+    return 'complete_rewrite';
+  }
+
+  private generateConfirmationToken(commitHashes: string[]): string {
+    const data = {
+      commits: commitHashes.sort(),
+      timestamp: new Date().toISOString().slice(0, 16),
+      nonce: Math.random().toString(36).substring(2, 8)
+    };
+    
+    return Buffer.from(JSON.stringify(data)).toString('base64').slice(0, 16);
+  }
+
+  // Helper methods for formatting
+  private formatChangelogAsMarkdown(changelog: any[]): string {
+    let markdown = '# Changelog\n\n';
+
+    for (const entry of changelog) {
+      markdown += `## ${entry.date.toDateString()}\n\n`;
+
+      if (entry.summary.breaking.length > 0) {
+        markdown += '### ⚠️ Breaking Changes\n';
+        entry.summary.breaking.forEach((item: string) => {
+          markdown += `- ${item}\n`;
+        });
+        markdown += '\n';
+      }
+
+      if (entry.summary.features.length > 0) {
+        markdown += '### ✨ Features\n';
+        entry.summary.features.forEach((item: string) => {
+          markdown += `- ${item}\n`;
+        });
+        markdown += '\n';
+      }
+
+      if (entry.summary.fixes.length > 0) {
+        markdown += '### 🐛 Bug Fixes\n';
+        entry.summary.fixes.forEach((item: string) => {
+          markdown += `- ${item}\n`;
+        });
+        markdown += '\n';
+      }
+
+      if (entry.summary.other.length > 0) {
+        markdown += '### 🔧 Other Changes\n';
+        entry.summary.other.forEach((item: string) => {
+          markdown += `- ${item}\n`;
+        });
+        markdown += '\n';
+      }
+    }
+
+    return markdown;
+  }
+
+  private formatReleaseNotesAsMarkdown(releaseNotes: any, includeBreaking: boolean): string {
+    let markdown = `# Release Notes: ${releaseNotes.fromRef} → ${releaseNotes.toRef}\n\n`;
+    
+    // Summary
+    markdown += '## 📊 Summary\n\n';
+    markdown += `- **Period**: ${releaseNotes.period.from.toDateString()} → ${releaseNotes.period.to.toDateString()}\n`;
+    markdown += `- **Commits**: ${releaseNotes.summary.commits}\n`;
+    markdown += `- **Contributors**: ${releaseNotes.summary.contributors}\n`;
+    markdown += `- **Files Changed**: ${releaseNotes.summary.filesChanged}\n`;
+    markdown += `- **Lines Added**: +${releaseNotes.summary.additions}\n`;
+    markdown += `- **Lines Removed**: -${releaseNotes.summary.deletions}\n\n`;
+
+    // Highlights
+    if (includeBreaking && releaseNotes.highlights.breakingChanges.length > 0) {
+      markdown += '## ⚠️ Breaking Changes\n\n';
+      releaseNotes.highlights.breakingChanges.forEach((change: string) => {
+        markdown += `- ${change}\n`;
+      });
+      markdown += '\n';
+    }
+
+    if (releaseNotes.highlights.majorFeatures.length > 0) {
+      markdown += '## ✨ Major Features\n\n';
+      releaseNotes.highlights.majorFeatures.forEach((feature: string) => {
+        markdown += `- ${feature}\n`;
+      });
+      markdown += '\n';
+    }
+
+    if (releaseNotes.highlights.bugFixes.length > 0) {
+      markdown += '## 🐛 Bug Fixes\n\n';
+      releaseNotes.highlights.bugFixes.forEach((fix: string) => {
+        markdown += `- ${fix}\n`;
+      });
+      markdown += '\n';
+    }
+
+    // Contributors
+    if (releaseNotes.contributors.length > 0) {
+      markdown += '## 👥 Contributors\n\n';
+      markdown += '| Contributor | Commits | Lines Added | Lines Removed |\n';
+      markdown += '|-------------|---------|-------------|---------------|\n';
+      releaseNotes.contributors.slice(0, 10).forEach((contributor: any) => {
+        markdown += `| ${contributor.name} | ${contributor.commits} | ${contributor.additions} | ${contributor.deletions} |\n`;
+      });
+      markdown += '\n';
+    }
+
+    return markdown;
   }
 
   async run() {

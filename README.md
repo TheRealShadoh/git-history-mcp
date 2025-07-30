@@ -1,564 +1,518 @@
-# Git History MCP v2.1
+# Git History MCP Server
 
-An enhanced Model Context Protocol (MCP) server that analyzes git history to generate comprehensive GitLab issue data with detailed code analysis, contributor information, time estimates, PDF export capabilities, and integration prompts for automated issue creation.
+A Model Context Protocol (MCP) server that analyzes git repository history to generate comprehensive GitLab issue data, executive summaries, and PDF reports with detailed code analysis.
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+## Features
 
-## 🚀 Features
+### 🔍 Core Git Analysis
+- **Git History Analysis**: Parse git commits and branches to extract feature development history
+- **Commit Diff Analysis**: Get detailed file-level changes and patches for any commit
+- **Commit Message Enhancement**: AI-powered suggestions for better commit messages using conventional format
+- **Similar Commit Detection**: Find related commits based on file overlap and content similarity
 
-### Core Capabilities
-- **Comprehensive Git Analysis**: Parse git history to extract feature branches with detailed commit analysis
-- **Detailed Issue Generation**: Create comprehensive GitLab issues with:
-  - Full contributor information and roles
-  - Technical implementation details
-  - Benefits and impact analysis
-  - Realistic time estimates with task breakdowns
-  - Code diffs with analysis
-  - Automated labeling and categorization
+### 📊 Team & Code Analysis  
+- **Code Ownership Analysis**: Identify file owners, contributors, and expertise domains
+- **Developer Productivity**: Analyze commit patterns, peak hours, and coding habits
+- **Team Collaboration**: Track cross-team contributions and knowledge distribution
 
-### PDF Export & Visualization ⭐ NEW
-- **Markdown to PDF Export**: Convert markdown reports to professional PDFs
-- **Mermaid Chart Rendering**: Automatically render mermaid diagrams in PDFs
-- **Configurable Formatting**: Support for A4, Letter, and A3 page formats
-- **Custom Styling**: Professional styling with proper typography and layout
-- **Chart Integration**: Seamless integration of flowcharts, pie charts, timelines, and more
+### 📋 Documentation & Release Management
+- **Automated Changelogs**: Generate conventional commit-based changelogs between any two references
+- **Professional Release Notes**: Create comprehensive release documentation with highlights and statistics
+- **GitLab Issue Generation**: Convert git history into detailed, trackable issues with time estimates
+- **Executive Reporting**: Generate high-level development summaries with metrics and visualizations
 
-### Tracking & Validation
-- **Commit-Based Tracking**: Track processed issues by commit hash (improved from branch-based)
-- **Duplicate Prevention**: Check for existing issues before creation
-- **GitLab Integration**: Direct integration with GitLab MCP for automated issue creation
-- **State Management**: Support for creating issues as opened or closed
+### 📄 Export & Integration
+- **PDF Export**: Convert markdown reports to professional PDFs with mermaid chart rendering
+- **Multiple Formats**: Support for JSON and Markdown output across all tools
+- **GitLab Integration**: Full compatibility with GitLab API for automated issue creation
+- **Duplicate Prevention**: Smart tracking to avoid creating duplicate issues
 
-### Advanced Analysis
-- **Technology Detection**: Automatically detect technologies (Ansible, Docker, Kubernetes, etc.)
-- **Change Categorization**: Classify changes by type (features, bugfixes, refactoring)
-- **Complexity Assessment**: Analyze code complexity for accurate time estimation
-- **File Pattern Analysis**: Understand project structure and change patterns
+### 🚀 Advanced Capabilities
+- **Conventional Commits**: Parse and generate conventional commit formats automatically
+- **Breaking Change Detection**: Identify and highlight breaking changes across releases
+- **Multi-format Output**: JSON for API integration, Markdown for human consumption
+- **Performance Optimized**: Configurable patch inclusion and filtering for large repositories
 
-## 📦 Installation
+## Installation
+
+### Via npm (recommended)
 
 ```bash
-git clone <repository-url>
+npm install -g git-history-mcp-server
+```
+
+### From source
+
+```bash
+git clone https://github.com/yourusername/git-history-mcp
 cd git-history-mcp
 npm install
 npm run build
 ```
 
-## ⚙️ Configuration
+## Configuration
 
-### Environment Setup
+### Environment Variables
 
-1. Copy the environment template:
-```bash
-cp .env.example .env
+Create a `.env` file in your working directory:
+
+```env
+# Target git repository to analyze (defaults to current directory)
+GIT_REPO_PATH=/path/to/your/repo
+
+# GitLab configuration (optional, for issue creation)
+GITLAB_PERSONAL_ACCESS_TOKEN=your-token-here
+GITLAB_API_URL=https://gitlab.example.com
+GITLAB_READ_ONLY_MODE=true  # Set to false to enable issue creation
 ```
 
-2. Edit `.env` with your configuration:
-```bash
-# Required: Set your git repository path
-GIT_REPO_PATH=/path/to/your/git/repository
+### MCP Client Configuration
 
-# Optional: GitLab integration (if using GitLab MCP)
-GITLAB_PERSONAL_ACCESS_TOKEN=your_token_here
-GITLAB_API_URL=https://your-gitlab-instance.com/api/v4
-GITLAB_READ_ONLY_MODE=false
-```
+Add to your MCP client configuration:
 
-### Claude Code MCP Configuration
 ```json
 {
   "mcpServers": {
     "git-history": {
-      "command": "node",
-      "args": ["/path/to/git-history-mcp/dist/index.js"],
+      "command": "git-history-mcp",
+      "args": [],
       "env": {
-        "GIT_REPO_PATH": "/path/to/your/repository"
-      }
-    },
-    "gitlab": {
-      "command": "npx",
-      "args": ["-y", "@zereight/mcp-gitlab"],
-      "env": {
-        "GITLAB_PERSONAL_ACCESS_TOKEN": "your_token_here",
-        "GITLAB_API_URL": "https://your-gitlab-instance.com/api/v4",
-        "GITLAB_READ_ONLY_MODE": "false"
+        "GIT_REPO_PATH": "/path/to/your/repo"
       }
     }
   }
 }
 ```
 
-## 🛠️ Available Tools
+## Available Tools
 
-### 1. `parse_git_history`
-Parse git history to extract feature branches and their commits.
+### Core Git Analysis Tools
+
+#### 1. `parse_git_history`
+Analyzes git branches and commits to extract feature development history.
 
 **Parameters:**
-- `since_days` (number): Days to look back (default: 90)
+- `since_days` (number, optional): Days to look back in history (default: 90)
 
-**Example:**
-```json
+**Returns:** List of feature branches with commit details, contributors, and metrics.
+
+#### 2. `get_commit_diff`
+Get detailed diff information for a specific commit including file changes and patches.
+
+**Parameters:**
+- `commit_hash` (string, required): The commit hash to analyze
+- `include_patch` (boolean, optional): Whether to include patch data (default: true)
+
+**Returns:** Comprehensive commit diff with file-level changes, statistics, and optional patch data.
+
+### Changelog & Documentation Tools
+
+#### 3. `generate_changelog`
+Generate a changelog between two git references (branches, tags, commits).
+
+**Parameters:**
+- `from_ref` (string, required): Starting reference (branch, tag, or commit hash)
+- `to_ref` (string, optional): Ending reference (default: HEAD)
+- `format` (string, optional): Output format - "markdown" or "json" (default: "markdown")
+
+**Returns:** Structured changelog with features, fixes, breaking changes, and conventional commit formatting.
+
+#### 4. `generate_release_notes`
+Generate comprehensive release notes between two references.
+
+**Parameters:**
+- `from_ref` (string, required): Starting reference (previous release tag/branch)
+- `to_ref` (string, optional): Ending reference (default: HEAD)
+- `format` (string, optional): Output format - "markdown" or "json" (default: "markdown")
+- `include_breaking_changes` (boolean, optional): Highlight breaking changes (default: true)
+
+**Returns:** Professional release notes with summary statistics, highlights, and contributor information.
+
+### Commit Enhancement Tools
+
+#### 5. `suggest_commit_message`
+Suggest an improved commit message based on the actual changes in a commit.
+
+**Parameters:**
+- `commit_hash` (string, required): The commit hash to analyze
+
+**Returns:** AI-suggested commit message following conventional commit format with reasoning and confidence score.
+
+#### 6. `find_similar_commits`
+Find commits with similar changes or patterns to a given commit.
+
+**Parameters:**
+- `commit_hash` (string, required): The commit hash to find similarities for
+- `limit` (number, optional): Maximum number of similar commits to return (default: 10, max: 50)
+
+**Returns:** List of similar commits with similarity scores and reasoning.
+
+### Code Ownership & Analysis Tools
+
+#### 7. `analyze_code_ownership`
+Analyze code ownership and expertise for files or directories.
+
+**Parameters:**
+- `path` (string, optional): Path to file or directory to analyze (default: entire repository)
+- `min_ownership_percentage` (number, optional): Minimum ownership percentage to include (default: 5)
+
+**Returns:** Detailed ownership analysis with primary owners, contributors, and expertise domains.
+
+#### 8. `analyze_commit_patterns`
+Analyze commit patterns and developer productivity metrics.
+
+**Parameters:**
+- `author` (string, optional): Specific author to analyze (analyzes all if not specified)
+- `days` (number, optional): Number of days to analyze (default: 90, max: 365)
+
+**Returns:** Comprehensive productivity analysis including commit frequency, peak hours, file types, and patterns.
+
+### Git History Modification Tools ⚠️
+
+> **SECURITY WARNING**: These tools can modify git history and are potentially destructive. Actual history rewriting is currently **DISABLED FOR SAFETY**. Only planning and analysis are enabled.
+
+#### 16. `plan_commit_message_rewrite`
+🔒 **SAFE** - Creates a comprehensive plan for rewriting commit messages with AI-generated improvements.
+
+**Parameters:**
+- `commit_hashes` (array, required): List of commit hashes to analyze and improve
+- `dry_run` (boolean, optional): Generate plan without executing (default: true)
+
+**Returns:** Detailed rewrite plan with safety checks, backup strategy, and confirmation token.
+
+**Safety Features:**
+- Comprehensive safety checks (uncommitted changes, pushed commits, protected branches)
+- Risk assessment and warnings for merge commits and old commits
+- Backup strategy with branch and tag creation
+- Confirmation token system with expiration
+
+#### 17. `execute_commit_rewrite`
+🚫 **DISABLED** - Execute a previously planned commit message rewrite (currently disabled for safety).
+
+**Parameters:**
+- `confirmation_token` (string, required): Token from the rewrite plan
+- `force` (boolean, optional): Override safety warnings (default: false)
+
+**Status:** This tool is intentionally disabled to prevent accidental history corruption. Manual alternatives are provided in the plan output.
+
+#### 18. `rollback_history_changes`
+🔒 **SAFE** - Rollback to a backup reference if history modification goes wrong.
+
+**Parameters:**
+- `backup_ref` (string, required): Backup branch or tag name to restore
+- `confirm` (boolean, required): Must be true to proceed with rollback
+
+**Returns:** Success status and rollback details.
+
+**Manual History Modification:**
+If you need to rewrite commit messages, use these safe manual approaches:
+1. **Interactive Rebase**: `git rebase -i HEAD~n` for recent commits
+2. **Amend Last Commit**: `git commit --amend` for the most recent commit
+3. **Filter Branch**: `git filter-branch --msg-filter` for complex rewrites
+
+Always create backups before modifying history:
+```bash
+# Create backup branch
+git branch backup-$(date +%Y%m%d-%H%M%S)
+
+# Create backup tag  
+git tag backup-tag-$(date +%Y%m%d-%H%M%S)
+```
+
+### GitLab Integration Tools
+
+#### 9. `generate_detailed_issues`
+Creates comprehensive GitLab issue data from git history.
+
+**Parameters:**
+- `since_days` (number, optional): Days to look back (default: 90)
+- `filter_processed` (boolean, optional): Skip already processed branches (default: true)
+- `include_code_diffs` (boolean, optional): Include code diffs in issues (default: true)
+- `default_state` (string, optional): Issue state - "opened" or "closed" (default: "closed")
+- `default_labels` (array, optional): Labels to apply (default: ["automated", "historical"])
+- `time_estimate_multiplier` (number, optional): Adjust time estimates (default: 1.0)
+
+**Returns:** GitLab-compatible issue data with detailed descriptions and metadata.
+
+#### 10. `generate_executive_development_summary`
+Creates executive-level development reports with visualizations.
+
+**Parameters:**
+- `since_days` (number, optional): Days to analyze (default: 180)
+- `output_path` (string, optional): Output directory (default: current directory)
+- `include_pdf` (boolean, optional): Generate PDF version (default: true)
+- `consolidate_authors` (boolean, optional): Merge similar author names (default: true)
+
+**Returns:** Markdown and PDF reports with development metrics and charts.
+
+### Export & Formatting Tools
+
+#### 11. `export_markdown_to_pdf`
+Converts markdown files to PDF with mermaid chart rendering.
+
+**Parameters:**
+- `markdown_file_path` (string, required): Path to markdown file
+- `output_path` (string, optional): Output PDF path
+- `include_charts` (boolean, optional): Render mermaid charts (default: true)
+- `page_format` (string, optional): "A4", "Letter", or "A3" (default: "A4")
+- `margins` (object, optional): Page margins configuration
+
+### Issue Tracking Tools
+
+#### 12-15. Issue Management
+- `check_issue_exists`: Verify if an issue was already created for a commit
+- `mark_issue_created`: Record successful issue creation
+- `get_issue_tracker_stats`: View tracking statistics
+- `reset_issue_tracker`: Clear tracking data
+
+#### 16-18. Git History Modification (Safety Mode)
+- `plan_commit_message_rewrite`: Plan safe commit message improvements
+- `execute_commit_rewrite`: Execute rewrite plan (currently disabled)
+- `rollback_history_changes`: Restore from backup if needed
+
+## Usage Examples
+
+### Basic Git History Analysis
+
+```javascript
+// Analyze last 30 days of git history
 {
-  "name": "parse_git_history",
+  "tool": "parse_git_history",
   "arguments": {
-    "since_days": 180
+    "since_days": 30
   }
 }
 ```
 
-### 2. `generate_detailed_issues` ⭐ 
-Generate comprehensive GitLab issue data with full analysis.
+### Commit Analysis & Enhancement
 
-**Parameters:**
-- `since_days` (number): Days to look back (default: 90)  
-- `filter_processed` (boolean): Skip already processed branches (default: true)
-- `include_code_diffs` (boolean): Include code diffs in descriptions (default: true)
-- `default_state` (string): Default issue state "opened" or "closed" (default: "closed")
-- `default_labels` (array): Default labels for all issues (default: ["automated", "historical"])
-- `time_estimate_multiplier` (number): Multiplier for time estimates (default: 1.0)
-
-**Example:**
-```json
+```javascript
+// Get detailed diff for a specific commit
 {
-  "name": "generate_detailed_issues", 
+  "tool": "get_commit_diff",
+  "arguments": {
+    "commit_hash": "abc123def456",
+    "include_patch": true
+  }
+}
+
+// Suggest improved commit message
+{
+  "tool": "suggest_commit_message",
+  "arguments": {
+    "commit_hash": "abc123def456"
+  }
+}
+
+// Find similar commits
+{
+  "tool": "find_similar_commits",
+  "arguments": {
+    "commit_hash": "abc123def456",
+    "limit": 5
+  }
+}
+```
+
+### Changelog & Release Management
+
+```javascript
+// Generate changelog between versions
+{
+  "tool": "generate_changelog",
+  "arguments": {
+    "from_ref": "v1.0.0",
+    "to_ref": "v2.0.0",
+    "format": "markdown"
+  }
+}
+
+// Create comprehensive release notes
+{
+  "tool": "generate_release_notes",
+  "arguments": {
+    "from_ref": "v1.5.0",
+    "to_ref": "HEAD",
+    "format": "markdown",
+    "include_breaking_changes": true
+  }
+}
+```
+
+### Code Ownership & Team Analysis
+
+```javascript
+// Analyze code ownership for specific directory
+{
+  "tool": "analyze_code_ownership",
+  "arguments": {
+    "path": "src/components",
+    "min_ownership_percentage": 10
+  }
+}
+
+// Analyze developer commit patterns
+{
+  "tool": "analyze_commit_patterns",
+  "arguments": {
+    "author": "john.doe@company.com",
+    "days": 30
+  }
+}
+
+// Analyze all developers' patterns
+{
+  "tool": "analyze_commit_patterns",
+  "arguments": {
+    "days": 90
+  }
+}
+```
+
+### GitLab Integration
+
+```javascript
+// Generate issues for unprocessed branches
+{
+  "tool": "generate_detailed_issues",
   "arguments": {
     "since_days": 90,
-    "include_code_diffs": true,
-    "default_state": "closed",
-    "default_labels": ["feature", "automated", "historical"],
-    "time_estimate_multiplier": 1.2
+    "filter_processed": true,
+    "default_labels": ["automated", "historical", "backlog"]
   }
 }
 ```
 
-### 3. `export_markdown_to_pdf` ⭐ NEW
-Export markdown files to PDF with mermaid chart rendering.
+### Executive Reporting
 
-**Parameters:**
-- `markdown_file_path` (string): Path to the markdown file to convert
-- `output_path` (string): Output path for PDF file (optional, defaults to same directory)
-- `include_charts` (boolean): Whether to render mermaid charts (default: true)
-- `page_format` (string): PDF page format - "A4", "Letter", or "A3" (default: "A4")
-- `margins` (object): PDF margins with top, right, bottom, left properties
-
-**Example:**
-```json
+```javascript
+// Generate comprehensive development report
 {
-  "name": "export_markdown_to_pdf",
+  "tool": "generate_executive_development_summary",
   "arguments": {
-    "markdown_file_path": "/path/to/report.md",
-    "include_charts": true,
-    "page_format": "A4",
-    "margins": {
-      "top": "1in",
-      "right": "0.8in",
-      "bottom": "1in",
-      "left": "0.8in"
-    }
+    "since_days": 180,
+    "include_pdf": true,
+    "consolidate_authors": true
   }
 }
 ```
 
-### 4. `check_issue_exists`
-Check if an issue already exists for a specific commit.
+### Git History Modification (Safety Mode)
 
-**Parameters:**
-- `commit_hash` (string): The commit hash to check
-
-### 5. `mark_issue_created`
-Mark an issue as successfully created in GitLab.
-
-**Parameters:**
-- `branch_name` (string): The branch name
-- `commit_hash` (string): The merge commit hash
-- `issue_id` (number): The created GitLab issue ID
-
-### 6. `get_issue_tracker_stats`
-Get statistics about processed issues.
-
-### 7. `reset_issue_tracker`
-Reset the issue tracker (useful for testing).
-
-## 🔗 Integration with GitLab MCP
-
-The enhanced git-history MCP is designed to work seamlessly with the GitLab MCP. Here's a typical workflow:
-
-### Basic Workflow
-```typescript
-// 1. Generate comprehensive issues
-const issues = await gitHistoryMcp.generate_detailed_issues({
-  since_days: 90,
-  default_state: "closed",
-  include_code_diffs: true
-});
-
-// 2. Create each issue in GitLab
-for (const issue of issues.data.issues) {
-  // Check if issue already exists
-  const exists = await gitHistoryMcp.check_issue_exists({
-    commit_hash: issue.merge_commit_hash
-  });
-  
-  if (!exists.data.exists) {
-    // Create issue in GitLab
-    const created = await gitlabMcp.create_issue({
-      project_id: "1",
-      title: issue.title,
-      description: issue.description,
-      labels: issue.labels.split(','),
-      state_event: issue.state_event
-    });
-    
-    // Track the created issue
-    await gitHistoryMcp.mark_issue_created({
-      branch_name: issue.branch_name,
-      commit_hash: issue.merge_commit_hash,
-      issue_id: created.iid
-    });
+```javascript
+// Plan commit message improvements (safe analysis only)
+{
+  "tool": "plan_commit_message_rewrite",
+  "arguments": {
+    "commit_hashes": ["abc123", "def456", "ghi789"],
+    "dry_run": true
   }
 }
 
-// 3. Export comprehensive reports to PDF
-await gitHistoryMcp.export_markdown_to_pdf({
-  markdown_file_path: "/path/to/development-summary.md",
-  include_charts: true,
-  page_format: "A4"
-});
+// Rollback to backup if needed
+{
+  "tool": "rollback_history_changes",
+  "arguments": {
+    "backup_ref": "backup-main-2024-01-15-143022",
+    "confirm": true
+  }
+}
 ```
 
-## 📄 PDF Export Features
+> **Note**: The `execute_commit_rewrite` tool is intentionally disabled for safety. The planning tool provides manual instructions for safe history modification.
 
-### Supported Chart Types
-The PDF export tool supports all mermaid diagram types:
-- **Flowcharts**: Process flows and architecture diagrams
-- **Pie Charts**: Distribution and percentage data
-- **Timeline**: Development roadmaps and schedules
-- **Quadrant Charts**: Priority and impact analysis
-- **XY Charts**: Quantitative data visualization
-- **Git Graphs**: Contributor activity and branching
-- **Sequence Diagrams**: System interactions
+## Development
 
-### Professional Styling
-- **Typography**: Clean, readable fonts optimized for print
-- **Color Schemes**: Professional color palette with print-friendly options
-- **Layout**: Proper margins, spacing, and page breaks
-- **Tables**: Styled tables with alternating row colors
-- **Code Blocks**: Syntax highlighting and proper formatting
-- **Charts**: Centered charts with proper spacing and shadows
+### Setup
 
-### Example Usage
 ```bash
-# Convert development summary to PDF
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "export_markdown_to_pdf", "arguments": {"markdown_file_path": "/path/to/report.md", "include_charts": true}}}' | node dist/index.js
-
-# Custom page format and margins
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "export_markdown_to_pdf", "arguments": {"markdown_file_path": "/path/to/report.md", "page_format": "Letter", "margins": {"top": "1.5in", "bottom": "1.5in"}}}}' | node dist/index.js
-```
-
-## 📊 Generated Issue Format
-
-The enhanced MCP generates comprehensive issues with this structure:
-
-```markdown
-## Feature Branch: branch-name
-
-**Merged:** July 27, 2025
-**Merge Commit:** abc1234567890
-**Author:** Developer Name
-
-### Contributors
-| Name | Role | Commits | Lines Changed |
-|------|------|---------|---------------|
-| John Smith | Author | 3 | 450 |
-| Jane Doe | Co-Author | 1 | 120 |
-
-### Changes Summary
-- **Files Modified:** 23
-- **Lines Added:** 611  
-- **Lines Removed:** 51
-- **Total Changes:** 662 lines
-- **Commits:** 4
-
-### Overview
-This feature implementation modifies 23 files with 611 additions and 51 deletions. The changes focus on VDI GPU virtualization, infrastructure automation, security enhancements.
-
-### Key Features
-- NVIDIA vGPU support for VDI environments
-- GPU acceleration for virtual desktops
-- Enhanced graphics performance
-- Resource optimization algorithms
-
-### Technical Implementation  
-- Python script modifications for GPU management
-- YAML configuration updates for Ansible playbooks
-- Shell script automation for deployment
-- Configuration management for vGPU profiles
-
-### Benefits
-- Enhanced graphics performance for virtual desktops
-- Improved resource utilization
-- Better user experience for graphics applications
-- Scalable GPU virtualization
-
-### Time Estimate
-**Estimated Development Time:** 24-32 hours
-
-This estimate includes:
-- Requirements analysis and design (4 hours)
-- Implementation and coding (13 hours)  
-- Testing and validation (6 hours)
-- Code review and refactoring (5 hours)
-- Documentation and deployment (4 hours)
-
-### Key Code Changes
-#### roles/vdi/templates/vgpu.conf.j2
-*New file added with 45 lines of vGPU configuration*
-```diff
-+{% for gpu in vgpu_profiles %}
-+device_vgpu_{{ gpu.name }} {
-+    vendor_id = {{ gpu.vendor_id }}
-+    device_id = {{ gpu.device_id }}
-+    ...
-+}
-+{% endfor %}
-```
-```
-
-## ⏱️ Time Estimation Logic
-
-The MCP uses intelligent time estimation based on:
-
-### Base Calculation
-- **Base Hours**: 1 hour per 100 lines changed (minimum 4 hours)
-- **File Complexity**: Additional time for file count
-- **Technology Complexity**: Multipliers for complex technologies (security: 1.2x, refactoring: 1.3x, migration: 1.5x)
-- **Team Size**: Adjustments for multiple contributors
-
-### Task Breakdown Distribution
-- **Requirements analysis and design** (15%)
-- **Implementation and coding** (40%)
-- **Testing and validation** (20%)
-- **Code review and refactoring** (15%)
-- **Documentation and deployment** (10%)
-
-### Complexity Factors
-- Database changes: +30%
-- Security implementations: +20%
-- Multi-contributor projects: +20%
-- Refactoring projects: +30%
-
-## 🏷️ Automated Label Generation
-
-Labels are automatically generated based on:
-
-### Change Type
-- `feature` - New functionality
-- `bugfix` - Bug fixes and patches
-- `refactoring` - Code restructuring
-- `enhancement` - Improvements to existing features
-
-### Technology Stack
-- `ansible` - Ansible automation
-- `docker` - Container technology
-- `kubernetes` - Kubernetes deployments
-- `security` - Security-related changes
-- `database` - Database modifications
-- `python` - Python scripts
-- `javascript` - JS/TS code
-
-### Change Size
-- `size/small` - <100 lines changed
-- `size/medium` - 100-500 lines changed 
-- `size/large` - 500-2000 lines changed
-- `size/xlarge` - >2000 lines changed
-
-### Custom Labels
-- User-defined default labels
-- Project-specific categorization
-- Priority indicators
-
-## 📈 Tracking System
-
-### Commit Hash-Based Tracking
-The tracking system uses commit hashes for better accuracy:
-
-- **Unique Identification**: Commit hashes are globally unique
-- **Merge Commit Focus**: Specifically tracks merge commits
-- **Backward Compatibility**: Automatically migrates old branch-based format
-- **Validation**: Built-in validation against GitLab issues
-
-### Tracking File Location
-- **File**: `.git-issues-tracker.json` 
-- **Format**: JSON with commit hash keys
-- **Data**: Branch name, issue ID, creation date, status
-
-### Tracking Methods
-```typescript
-// Check if issue exists for a commit
-const exists = await checkIssueExists({ commit_hash: "abc123..." });
-
-// Get issue details by commit
-const issue = await getIssueByCommit("abc123...");
-
-// Track successful creation
-await markIssueCreated({
-  branch_name: "feature-branch",
-  commit_hash: "abc123...",
-  issue_id: 42
-});
-```
-
-## 🔧 Development
-
-### Build and Run
-```bash
+# Install dependencies
 npm install
-npm run build
-npm start
-```
 
-### Development Mode
-```bash
+# Build TypeScript
+npm run build
+
+# Run in development mode
 npm run dev
 ```
 
 ### Testing
+
 ```bash
-npm test
+# Test with MCP Inspector
+npm run inspector
+
+# Direct JSON-RPC testing
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | node ./dist/index.js
 ```
 
-### Manual Testing
-```bash
-# Test git history parsing
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "parse_git_history", "arguments": {"since_days": 30}}}' | node dist/index.js
+### Project Structure
 
-# Test issue generation  
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "generate_detailed_issues", "arguments": {"since_days": 30, "include_code_diffs": false}}}' | node dist/index.js
-
-# Test PDF export
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "export_markdown_to_pdf", "arguments": {"markdown_file_path": "/path/to/file.md", "include_charts": true}}}' | node dist/index.js
+```
+git-history-mcp/
+├── src/
+│   ├── index.ts          # MCP server entry point
+│   ├── git-parser.ts     # Git history extraction
+│   ├── issue-generator.ts # GitLab issue generation
+│   ├── issue-tracker.ts  # Duplicate prevention
+│   ├── pdf-generator.ts  # PDF export functionality
+│   └── types.ts          # TypeScript interfaces
+├── dist/                 # Compiled JavaScript
+├── .env                  # Environment configuration
+└── package.json          # Project configuration
 ```
 
-## 🚨 Error Handling
+## Requirements
 
-### Graceful Degradation
-- Missing git repository → Clear error message
-- Unreadable commits → Skip with warning
-- Missing contributor data → Use fallback values
-- Large diffs → Truncate with notification
-- PDF generation errors → Detailed error reporting
+- Node.js 18 or higher
+- Git repository with merge commit history
+- (Optional) GitLab access for issue creation
+- (Optional) Chrome/Chromium for PDF generation
 
-### Validation
-- Commit hash validation
-- Branch name sanitization
-- Time estimate bounds checking
-- Label format validation
-- File path validation for PDF export
+## Security Notes
 
-### Logging
-- Structured error logging
-- Debug mode support
-- Performance metrics
-- Issue creation tracking
-- PDF generation monitoring
+- Never commit `.env` files or expose access tokens
+- Use `GITLAB_READ_ONLY_MODE=true` for testing
+- The server runs with read-only git access by default
+- All GitLab operations require explicit token configuration
 
-## 📋 Migration from v2.0
+## Troubleshooting
 
-### New Features in v2.1
-- **PDF Export**: Complete markdown to PDF conversion with mermaid support
-- **Enhanced Styling**: Professional PDF formatting and layout
-- **Chart Rendering**: Automatic mermaid diagram rendering in PDFs
-- **Configurable Formats**: Support for multiple page formats and margins
+### Common Issues
 
-### Backward Compatibility
-All existing v2.0 features remain fully compatible. No changes required to existing workflows.
+1. **"No feature branches found"**
+   - Ensure your repository uses merge commits (not squash)
+   - Check the `since_days` parameter
+   - Verify the `GIT_REPO_PATH` is correct
 
-## 📚 Examples
+2. **PDF generation fails**
+   - Puppeteer requires Chrome/Chromium
+   - May need additional system dependencies on Linux
+   - Check file write permissions
 
-### Quick Start
-```bash
-# Generate and create issues for last 3 months
-node -e "
-const mcp = require('./dist/index.js');
-mcp.generateDetailedIssues({
-  since_days: 90,
-  default_state: 'closed',
-  include_code_diffs: true
-}).then(console.log);
-"
-```
+3. **STDIO transport errors**
+   - Ensure no console.log statements in code
+   - All output must go through MCP protocol
+   - Check for proper JSON-RPC formatting
 
-### PDF Export Workflow
-```bash
-# Generate comprehensive report and export to PDF
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "generate_detailed_issues", "arguments": {"since_days": 180}}}' | node dist/index.js > report.json
+## Contributing
 
-# Export markdown report to PDF
-echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "export_markdown_to_pdf", "arguments": {"markdown_file_path": "/path/to/report.md", "include_charts": true, "page_format": "A4"}}}' | node dist/index.js
-```
-
-### Custom Configuration
-```typescript
-const config = {
-  since_days: 180,
-  filter_processed: true,
-  include_code_diffs: true,
-  default_state: 'closed',
-  default_labels: ['completed', 'automated', 'historical'],
-  time_estimate_multiplier: 1.3
-};
-
-const issues = await gitHistoryMcp.generate_detailed_issues(config);
-
-// Export to PDF with custom settings
-await gitHistoryMcp.export_markdown_to_pdf({
-  markdown_file_path: '/path/to/report.md',
-  output_path: '/path/to/custom-report.pdf',
-  include_charts: true,
-  page_format: 'Letter',
-  margins: {
-    top: '1.5in',
-    bottom: '1.5in',
-    left: '1in',
-    right: '1in'
-  }
-});
-```
-
-## 🤝 Contributing
+Contributions are welcome! Please:
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Add tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
 
-### Development Guidelines
-- Follow TypeScript best practices
-- Add tests for new functionality
-- Update documentation
-- Use conventional commit messages
+## License
 
-## 📄 License
+MIT License - see LICENSE file for details
 
-MIT License - see [LICENSE](LICENSE) file for details.
+## Acknowledgments
 
-## 🔗 Related Projects
-
-- [GitLab MCP Server](https://github.com/zereight/gitlab-mcp) - GitLab API integration
-- [Model Context Protocol](https://modelcontextprotocol.io/) - MCP specification
-- [Claude Code](https://claude.ai/code) - AI-powered development assistant
-- [Puppeteer](https://pptr.dev/) - PDF generation engine
-- [Mermaid](https://mermaid.js.org/) - Diagram and flowchart generation
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-repo/git-history-mcp/issues)
-- **Documentation**: [GitHub Wiki](https://github.com/your-repo/git-history-mcp/wiki)
-- **Discussions**: [GitHub Discussions](https://github.com/your-repo/git-history-mcp/discussions)
-
----
-
-**Git History MCP v2.1** - Transforming git history into comprehensive project documentation with intelligent analysis, seamless GitLab integration, and professional PDF export capabilities.
+Built with:
+- [Model Context Protocol SDK](https://modelcontextprotocol.io)
+- [Simple Git](https://github.com/steveukx/git-js)
+- [Puppeteer](https://pptr.dev/)
+- [Mermaid](https://mermaid.js.org/)
