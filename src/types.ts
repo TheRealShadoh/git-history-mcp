@@ -104,7 +104,7 @@ export interface DetailedIssueData {
     analysis: string;
   }[];
   
-  // GitLab Integration
+  // Issue Integration
   labels: string[];
   assignees?: string[];
   state: 'opened' | 'closed';

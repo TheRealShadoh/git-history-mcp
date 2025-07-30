@@ -1,21 +1,11 @@
 #!/bin/bash
 
 # Git History MCP Server startup script
-# Make sure to create .env file with your settings first
-
-# Load environment variables from .env file
-if [ -f .env ]; then
-    set -a
-    source .env
-    set +a
-    echo "Loaded configuration from .env file"
-else
-    echo "Warning: .env file not found. Please copy .env.example to .env and configure your settings."
-    exit 1
-fi
+# No configuration required - works with current directory by default
 
 echo "Starting Git History MCP Server..."
-echo "Repository path: ${GIT_REPO_PATH:-$(pwd)}"
+echo "Repository path: $(pwd)"
+echo "Note: Use set_repository_path tool to change target repository"
 
 # Use the built version in this directory
 node ./dist/index.js

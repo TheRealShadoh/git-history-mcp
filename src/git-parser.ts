@@ -326,7 +326,7 @@ export class GitHistoryParser {
   }
 
   private extractPullRequestInfo(mergeMessage: string): PullRequestInfo | undefined {
-    // Look for GitLab merge request patterns
+    // Look for merge request patterns
     const patterns = [
       /Merge branch '([^']+)' into '([^']+)'/,
       /See merge request ([^\s!]+)!(\d+)/,

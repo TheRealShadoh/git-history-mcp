@@ -165,7 +165,7 @@ export class IssueTracker {
   }
 
   /**
-   * Check if a GitLab issue already exists for a commit
+   * Check if an issue already exists for a commit
    */
   async checkExistingIssue(commitHash: string): Promise<{
     exists: boolean;

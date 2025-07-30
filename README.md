@@ -67,6 +67,232 @@ Add to your MCP client configuration:
 }
 ```
 
+## Claude Integration
+
+### Claude Desktop Setup
+
+1. **Install the MCP server:**
+   ```bash
+   npm install -g git-history-mcp-server
+   ```
+
+2. **Add to Claude Desktop configuration:**
+   
+   Open your Claude Desktop configuration file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+   - **Linux**: `~/.config/claude/claude_desktop_config.json`
+
+3. **Add the server configuration:**
+   ```json
+   {
+     "mcpServers": {
+       "git-history": {
+         "command": "git-history-mcp",
+         "args": []
+       }
+     }
+   }
+   ```
+
+4. **Restart Claude Desktop** to load the new MCP server.
+
+### Claude CLI Setup
+
+1. **Install Claude CLI:**
+   ```bash
+   # Install Claude CLI if you haven't already
+   npm install -g @anthropics/claude-cli
+   ```
+
+2. **Install the MCP server:**
+   ```bash
+   npm install -g git-history-mcp-server
+   ```
+
+3. **Configure Claude CLI with MCP server:**
+   
+   Create or edit your Claude CLI configuration file:
+   - **Global config**: `~/.config/claude/settings.json`
+   - **Project config**: `.claude/settings.json` (in your project directory)
+
+4. **Add the MCP server configuration:**
+   ```json
+   {
+     "mcpServers": {
+       "git-history": {
+         "command": "git-history-mcp",
+         "args": []
+       }
+     }
+   }
+   ```
+
+5. **Start Claude CLI with MCP support:**
+   ```bash
+   # Navigate to your git repository
+   cd /path/to/your/git/repo
+   
+   # Start Claude CLI (it will automatically load MCP servers)
+   claude
+   ```
+
+### Local Development Setup (Claude CLI)
+
+For development or latest version with Claude CLI:
+
+1. **Clone and build:**
+   ```bash
+   git clone https://github.com/yourusername/git-history-mcp
+   cd git-history-mcp
+   npm install
+   npm run build
+   ```
+
+2. **Create project-specific configuration:**
+   ```bash
+   # In your git repository directory
+   mkdir -p .claude
+   ```
+
+3. **Configure with local path (.claude/settings.json):**
+   ```json
+   {
+     "mcpServers": {
+       "git-history": {
+         "command": "node",
+         "args": ["/absolute/path/to/git-history-mcp/dist/index.js"]
+       }
+     }
+   }
+   ```
+
+4. **Start Claude CLI:**
+   ```bash
+   claude
+   ```
+
+### Development Setup (From Source)
+
+If you're developing or want to use the latest version:
+
+1. **Clone and build:**
+   ```bash
+   git clone https://github.com/yourusername/git-history-mcp
+   cd git-history-mcp
+   npm install
+   npm run build
+   ```
+
+2. **Configure Claude Desktop with local path:**
+   ```json
+   {
+     "mcpServers": {
+       "git-history": {
+         "command": "node",
+         "args": ["/absolute/path/to/git-history-mcp/dist/index.js"]
+       }
+     }
+   }
+   ```
+
+### Using with Claude
+
+Once integrated, you can use natural language to interact with your Git repositories:
+
+**Examples:**
+- "Analyze the git history for the last 30 days"
+- "Generate a changelog between v1.0.0 and v2.0.0"
+- "Show me the commit patterns for the development team"
+- "Create an executive summary of our development progress"
+- "Export the development report as a PDF"
+- "Clone https://github.com/user/repo and analyze its history"
+
+**Available Commands:**
+
+All 27 tools are available through natural language. Key capabilities include:
+
+- **Git Analysis**: `parse_git_history`, `get_commit_diff`, `suggest_commit_message`
+- **Documentation**: `generate_changelog`, `generate_release_notes`
+- **Team Analytics**: `analyze_code_ownership`, `analyze_commit_patterns`
+- **Repository Management**: `clone_repository`, `set_repository_path`, `checkout_branch`
+- **Reporting**: `generate_executive_development_summary`, `export_markdown_to_pdf`
+- **Issue Tracking**: `generate_detailed_issues`, `check_issue_exists`
+
+### Troubleshooting Claude Integration
+
+#### Claude Desktop Issues
+
+1. **Server not loading:**
+   - Check Claude Desktop configuration file syntax
+   - Verify the command path is correct
+   - Restart Claude Desktop after configuration changes
+
+2. **Command not found:**
+   - Ensure `git-history-mcp` is in your PATH (if installed globally)
+   - Use absolute paths for development installations
+
+3. **Permission errors:**
+   - Ensure the executable has proper permissions: `chmod +x dist/index.js`
+   - Check that Node.js is accessible from Claude Desktop's environment
+
+#### Claude CLI Issues
+
+1. **MCP server not loading in CLI:**
+   - Check configuration file location: `.claude/settings.json` or `~/.config/claude/settings.json`
+   - Verify JSON syntax is valid
+   - Ensure you're running `claude` from the correct directory
+
+2. **Configuration file not found:**
+   ```bash
+   # Create the directory if it doesn't exist
+   mkdir -p .claude
+   # Or for global config
+   mkdir -p ~/.config/claude
+   ```
+
+3. **Server connection issues:**
+   - Check that the MCP server executable is accessible
+   - Verify Node.js is in PATH for Claude CLI
+   - Test the server independently first
+
+4. **Project vs Global configuration:**
+   - Project config (`.claude/settings.json`) takes precedence over global
+   - Use project config for repository-specific analysis
+   - Use global config for general Git repository analysis
+
+#### General Testing
+
+```bash
+# Test the server directly
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | git-history-mcp
+
+# Test with Claude CLI verbosity
+claude --verbose
+
+# Check MCP server status in Claude CLI
+# (once connected, you can ask "what MCP servers are available?")
+```
+
+### Advanced Configuration
+
+You can customize the server behavior by setting environment variables or modifying the startup args:
+
+```json
+{
+  "mcpServers": {
+    "git-history": {
+      "command": "git-history-mcp",
+      "args": [],
+      "env": {
+        "GIT_HISTORY_DEFAULT_DAYS": "90",
+        "GIT_HISTORY_MAX_COMMITS": "1000"
+      }
+    }
+  }
+}
+```
+
 ### Repository Management
 
 The server starts by analyzing the current working directory. You can:

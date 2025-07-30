@@ -58,7 +58,7 @@ export class IssueGenerator {
       // Code Diffs
       codeDiffs,
       
-      // GitLab Integration
+      // Issue Integration
       labels,
       state: this.config.defaultState,
       

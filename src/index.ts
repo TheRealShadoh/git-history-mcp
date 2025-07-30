@@ -18,6 +18,8 @@ import { CodeOwnershipAnalyzer } from './code-ownership.js';
 import { GitHistoryModifier } from './git-history-modifier.js';
 import { FeatureBranch, DetailedIssueData, IssueGenerationConfig } from './types.js';
 import { Validator, ValidationError } from './validation.js';
+import { ApiManager, ProviderConfig } from './api-manager.js';
+import { BaseApiClient } from './api-client.js';
 
 class GitHistoryMCPServer {
   private server: Server;
@@ -28,6 +30,7 @@ class GitHistoryMCPServer {
   private commitAnalyzer: CommitAnalyzer;
   private codeOwnership: CodeOwnershipAnalyzer;
   private historyModifier: GitHistoryModifier;
+  private apiManager: ApiManager;
   private repoPath: string;
 
   constructor() {
@@ -51,6 +54,7 @@ class GitHistoryMCPServer {
     this.commitAnalyzer = new CommitAnalyzer(this.repoPath);
     this.codeOwnership = new CodeOwnershipAnalyzer(this.repoPath);
     this.historyModifier = new GitHistoryModifier(this.repoPath);
+    this.apiManager = new ApiManager();
 
     this.setupToolHandlers();
   }
@@ -74,7 +78,7 @@ class GitHistoryMCPServer {
         },
         {
           name: 'generate_detailed_issues',
-          description: 'Generate comprehensive GitLab issue data with full analysis',
+          description: 'Generate comprehensive issue data with full analysis',
           inputSchema: {
             type: 'object',
             properties: {
@@ -137,7 +141,7 @@ class GitHistoryMCPServer {
         },
         {
           name: 'mark_issue_created',
-          description: 'Mark an issue as successfully created in GitLab',
+          description: 'Mark an issue as successfully created',
           inputSchema: {
             type: 'object',
             properties: {
@@ -151,7 +155,7 @@ class GitHistoryMCPServer {
               },
               issue_id: {
                 type: 'number',
-                description: 'The created GitLab issue ID',
+                description: 'The created issue ID',
               },
             },
             required: ['branch_name', 'commit_hash'],
@@ -518,6 +522,393 @@ class GitHistoryMCPServer {
             },
           },
         },
+        {
+          name: 'configure_api_provider',
+          description: 'Configure authentication for GitHub, GitLab, or Bitbucket API access',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Git hosting provider',
+              },
+              baseURL: {
+                type: 'string',
+                description: 'Custom API base URL for self-hosted instances (optional)',
+              },
+              token: {
+                type: 'string',
+                description: 'Personal access token or API token',
+              },
+              username: {
+                type: 'string',
+                description: 'Username for basic auth (alternative to token)',
+              },
+              password: {
+                type: 'string',
+                description: 'Password for basic auth (alternative to token)',
+              },
+              ignoreCertificateErrors: {
+                type: 'boolean',
+                description: 'Ignore SSL certificate errors (default: false)',
+                default: false,
+              },
+              timeout: {
+                type: 'number',
+                description: 'Request timeout in milliseconds (default: 30000)',
+                default: 30000,
+              },
+            },
+            required: ['provider'],
+          },
+        },
+        {
+          name: 'get_repository_info',
+          description: 'Get comprehensive information about a repository from its hosting provider',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+            },
+          },
+        },
+        {
+          name: 'get_pull_requests',
+          description: 'Get pull/merge requests from a repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+              state: {
+                type: 'string',
+                enum: ['open', 'closed', 'all'],
+                description: 'Filter by state (default: all)',
+                default: 'all',
+              },
+            },
+          },
+        },
+        {
+          name: 'get_pull_request',
+          description: 'Get detailed information about a specific pull/merge request',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+              number: {
+                type: 'number',
+                description: 'Pull/merge request number',
+              },
+            },
+            required: ['number'],
+          },
+        },
+        {
+          name: 'create_pull_request',
+          description: 'Create a new pull/merge request',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+              title: {
+                type: 'string',
+                description: 'Pull request title',
+              },
+              description: {
+                type: 'string',
+                description: 'Pull request description/body (optional)',
+              },
+              sourceBranch: {
+                type: 'string',
+                description: 'Source branch name',
+              },
+              targetBranch: {
+                type: 'string',
+                description: 'Target branch name',
+              },
+            },
+            required: ['title', 'sourceBranch', 'targetBranch'],
+          },
+        },
+        {
+          name: 'get_issues',
+          description: 'Get issues from a repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+              state: {
+                type: 'string',
+                enum: ['open', 'closed', 'all'],
+                description: 'Filter by state (default: all)',
+                default: 'all',
+              },
+            },
+          },
+        },
+        {
+          name: 'create_issue',
+          description: 'Create a new issue in a repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+              title: {
+                type: 'string',
+                description: 'Issue title',
+              },
+              description: {
+                type: 'string',
+                description: 'Issue description/body (optional)',
+              },
+              labels: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Issue labels (optional)',
+              },
+              assignee: {
+                type: 'string',
+                description: 'Username to assign issue to (optional)',
+              },
+            },
+            required: ['title'],
+          },
+        },
+        {
+          name: 'get_releases',
+          description: 'Get releases from a repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+            },
+          },
+        },
+        {
+          name: 'create_release',
+          description: 'Create a new release in a repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+              tagName: {
+                type: 'string',
+                description: 'Git tag name for the release',
+              },
+              name: {
+                type: 'string',
+                description: 'Release name',
+              },
+              description: {
+                type: 'string',
+                description: 'Release description/notes (optional)',
+              },
+              draft: {
+                type: 'boolean',
+                description: 'Create as draft release (default: false)',
+                default: false,
+              },
+              prerelease: {
+                type: 'boolean',
+                description: 'Mark as pre-release (default: false)',
+                default: false,
+              },
+            },
+            required: ['tagName', 'name'],
+          },
+        },
+        {
+          name: 'get_branches',
+          description: 'Get branches from a repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+            },
+          },
+        },
+        {
+          name: 'get_commits',
+          description: 'Get commits from a repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL (GitHub, GitLab, or Bitbucket)',
+              },
+              owner: {
+                type: 'string',
+                description: 'Repository owner/organization (alternative to URL)',
+              },
+              repo: {
+                type: 'string',
+                description: 'Repository name (alternative to URL)',
+              },
+              provider: {
+                type: 'string',
+                enum: ['github', 'gitlab', 'bitbucket'],
+                description: 'Provider when using owner/repo (optional if URL provided)',
+              },
+              branch: {
+                type: 'string',
+                description: 'Branch name to get commits from (optional, default: default branch)',
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of commits to retrieve (default: 100)',
+                default: 100,
+                minimum: 1,
+                maximum: 100,
+              },
+            },
+          },
+        },
       ],
     }));
 
@@ -589,6 +980,42 @@ class GitHistoryMCPServer {
 
           case 'pull_repository':
             return await this.pullRepository(request.params.arguments);
+
+          case 'configure_api_provider':
+            return await this.configureApiProvider(request.params.arguments);
+
+          case 'get_repository_info':
+            return await this.getRepositoryInfo(request.params.arguments);
+
+          case 'get_pull_requests':
+            return await this.getPullRequests(request.params.arguments);
+
+          case 'get_pull_request':
+            return await this.getPullRequest(request.params.arguments);
+
+          case 'create_pull_request':
+            return await this.createPullRequest(request.params.arguments);
+
+          case 'get_issues':
+            return await this.getIssues(request.params.arguments);
+
+          case 'create_issue':
+            return await this.createIssueApi(request.params.arguments);
+
+          case 'get_issue':
+            return await this.getIssue(request.params.arguments);
+
+          case 'get_releases':
+            return await this.getReleases(request.params.arguments);
+
+          case 'create_release':
+            return await this.createRelease(request.params.arguments);
+
+          case 'get_branches':
+            return await this.getBranches(request.params.arguments);
+
+          case 'get_commits':
+            return await this.getCommits(request.params.arguments);
 
           default:
             throw new McpError(
@@ -694,8 +1121,8 @@ class GitHistoryMCPServer {
         issueDataList.push(issueData);
       }
       
-      // Format for GitLab API compatibility
-      const gitlabIssues = issueDataList.map(issue => ({
+      // Format for issue tracking compatibility
+      const formattedIssues = issueDataList.map(issue => ({
         title: issue.title,
         description: issue.description,
         labels: issue.labels.join(','),
@@ -719,7 +1146,7 @@ class GitHistoryMCPServer {
               success: true,
               message: `Generated ${issueDataList.length} detailed issue entries`,
               data: {
-                issues: gitlabIssues,
+                issues: formattedIssues,
                 detailed_issues: issueDataList,
                 total_branches: branches.length,
                 skipped_branches: skippedBranches,
@@ -2194,6 +2621,606 @@ ${summary.branches.map((branch: any) => {
             text: JSON.stringify({
               success: false,
               error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  // API tool handler methods
+  private async configureApiProvider(args: any): Promise<any> {
+    const { provider, baseURL, token, username, password, ignoreCertificateErrors, timeout } = args;
+
+    if (!provider) {
+      throw new Error('Provider is required');
+    }
+
+    const config = {
+      provider,
+      baseURL,
+      token,
+      username,
+      password,
+      ignoreCertificateErrors: ignoreCertificateErrors || false,
+      timeout: timeout || 30000,
+    };
+
+    this.apiManager.configureProvider(config);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            message: `${provider} API configured successfully`,
+            provider,
+            baseURL: baseURL || (provider === 'github' ? 'https://api.github.com' : provider === 'gitlab' ? 'https://gitlab.com/api/v4' : 'https://api.bitbucket.org/2.0'),
+          }, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async getRepositoryInfo(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL } = args;
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const repository = await client.getRepository(repoOwner, repoName);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ repository }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get repository info: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async getPullRequests(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL, state = 'all' } = args;
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const pullRequests = await client.getPullRequests(repoOwner, repoName, state);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ pullRequests, count: pullRequests.length }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get pull requests: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async getPullRequest(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL, number } = args;
+
+    if (!number) {
+      throw new Error('Pull request number is required');
+    }
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const pullRequest = await client.getPullRequest(repoOwner, repoName, number);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ pullRequest }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get pull request: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async getBranches(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL } = args;
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const branches = await client.getBranches(repoOwner, repoName);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ branches, count: branches.length }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get branches: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async getIssues(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL, state = 'all' } = args;
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const issues = await client.getIssues(repoOwner, repoName, state);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ issues, count: issues.length }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get issues: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async getIssue(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL, number } = args;
+
+    if (!number) {
+      throw new Error('Issue number is required');
+    }
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const issue = await client.getIssue(repoOwner, repoName, number);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ issue }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get issue: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async getReleases(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL } = args;
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const releases = await client.getReleases(repoOwner, repoName);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ releases, count: releases.length }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get releases: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async getCommits(args: any): Promise<any> {
+    const { repositoryUrl, owner, repo, provider, baseURL, branch, limit = 100 } = args;
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const commits = await client.getCommits(repoOwner, repoName, branch, limit);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ commits, count: commits.length, branch: branch || 'default' }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to get commits: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async createPullRequest(args: any): Promise<any> {
+    const {
+      repositoryUrl,
+      owner,
+      repo,
+      provider,
+      baseURL,
+      title,
+      description,
+      sourceBranch,
+      targetBranch,
+    } = args;
+
+    if (!title || !sourceBranch || !targetBranch) {
+      throw new Error('Title, source branch, and target branch are required');
+    }
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const pullRequest = await client.createPullRequest(repoOwner, repoName, {
+        title,
+        description,
+        sourceBranch,
+        targetBranch,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ pullRequest, message: 'Pull request created successfully' }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to create pull request: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async createIssueApi(args: any): Promise<any> {
+    const {
+      repositoryUrl,
+      owner,
+      repo,
+      provider,
+      baseURL,
+      title,
+      description,
+      labels,
+      assignee,
+    } = args;
+
+    if (!title) {
+      throw new Error('Title is required');
+    }
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const issue = await client.createIssue(repoOwner, repoName, {
+        title,
+        description,
+        labels,
+        assignee,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ issue, message: 'Issue created successfully' }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to create issue: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async createRelease(args: any): Promise<any> {
+    const {
+      repositoryUrl,
+      owner,
+      repo,
+      provider,
+      baseURL,
+      tagName,
+      name,
+      description,
+      draft,
+      prerelease,
+    } = args;
+
+    if (!tagName || !name) {
+      throw new Error('Tag name and release name are required');
+    }
+
+    try {
+      let client: BaseApiClient;
+      let repoOwner: string;
+      let repoName: string;
+
+      if (repositoryUrl) {
+        const { client: urlClient, parsed } = this.apiManager.getClientForUrl(repositoryUrl);
+        client = urlClient;
+        repoOwner = parsed.owner;
+        repoName = parsed.repo;
+      } else if (owner && repo && provider) {
+        client = this.apiManager.getClient(provider, baseURL);
+        repoOwner = owner;
+        repoName = repo;
+      } else {
+        throw new Error('Either repositoryUrl or (owner, repo, provider) must be provided');
+      }
+
+      const release = await client.createRelease(repoOwner, repoName, {
+        tagName,
+        name,
+        description,
+        draft,
+        prerelease,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ release, message: 'Release created successfully' }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to create release: ${error.message}`,
             }, null, 2),
           },
         ],
