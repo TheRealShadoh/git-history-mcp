@@ -43,7 +43,7 @@ class GitHistoryMCPServer {
       }
     );
 
-    this.repoPath = process.env.GIT_REPO_PATH || process.cwd();
+    this.repoPath = process.cwd();
     this.gitParser = new GitHistoryParser(this.repoPath);
     this.issueTracker = new IssueTracker(this.repoPath);
     this.issueGenerator = new IssueGenerator();
@@ -446,6 +446,78 @@ class GitHistoryMCPServer {
             required: ['backup_ref'],
           },
         },
+        {
+          name: 'set_repository_path',
+          description: 'Set the target repository path for analysis (use current directory if not specified)',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Path to git repository (defaults to current working directory)',
+              },
+            },
+          },
+        },
+        {
+          name: 'clone_repository',
+          description: 'Clone a remote repository to work with',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'Repository URL to clone',
+              },
+              path: {
+                type: 'string',
+                description: 'Local path to clone to (optional)',
+              },
+              branch: {
+                type: 'string',
+                description: 'Specific branch to checkout after cloning (optional)',
+              },
+            },
+            required: ['url'],
+          },
+        },
+        {
+          name: 'checkout_branch',
+          description: 'Switch to a different branch in the current repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              branch: {
+                type: 'string',
+                description: 'Branch name to checkout',
+              },
+              create: {
+                type: 'boolean',
+                description: 'Create the branch if it does not exist (default: false)',
+                default: false,
+              },
+            },
+            required: ['branch'],
+          },
+        },
+        {
+          name: 'pull_repository',
+          description: 'Pull latest changes from remote repository',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              remote: {
+                type: 'string',
+                description: 'Remote name (default: origin)',
+                default: 'origin',
+              },
+              branch: {
+                type: 'string',
+                description: 'Branch to pull (default: current branch)',
+              },
+            },
+          },
+        },
       ],
     }));
 
@@ -505,6 +577,18 @@ class GitHistoryMCPServer {
 
           case 'rollback_history_changes':
             return await this.rollbackHistoryChanges(request.params.arguments);
+
+          case 'set_repository_path':
+            return await this.setRepositoryPath(request.params.arguments);
+
+          case 'clone_repository':
+            return await this.cloneRepository(request.params.arguments);
+
+          case 'checkout_branch':
+            return await this.checkoutBranch(request.params.arguments);
+
+          case 'pull_repository':
+            return await this.pullRepository(request.params.arguments);
 
           default:
             throw new McpError(
@@ -1894,6 +1978,227 @@ ${summary.branches.map((branch: any) => {
     }
 
     return markdown;
+  }
+
+  // Repository management methods
+  private async setRepositoryPath(args: any) {
+    try {
+      const path = args?.path ? Validator.validateString(args.path, 'path') : process.cwd();
+      
+      // Validate that the path exists and is a git repository
+      const fs = await import('fs-extra');
+      if (!await fs.pathExists(path)) {
+        throw new ValidationError(`Path does not exist: ${path}`);
+      }
+      
+      const gitPath = `${path}/.git`;
+      if (!await fs.pathExists(gitPath)) {
+        throw new ValidationError(`Path is not a git repository: ${path}`);
+      }
+      
+      // Update repository path and reinitialize components
+      this.repoPath = path;
+      this.gitParser = new GitHistoryParser(this.repoPath);
+      this.issueTracker = new IssueTracker(this.repoPath);
+      this.commitAnalyzer = new CommitAnalyzer(this.repoPath);
+      this.codeOwnership = new CodeOwnershipAnalyzer(this.repoPath);
+      this.historyModifier = new GitHistoryModifier(this.repoPath);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Repository path set to: ${this.repoPath}`,
+              data: {
+                path: this.repoPath,
+                exists: true,
+                isGitRepo: true
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async cloneRepository(args: any) {
+    try {
+      const url = Validator.validateString(args?.url, 'url');
+      const path = args?.path ? Validator.validateString(args.path, 'path') : undefined;
+      const branch = args?.branch ? Validator.validateString(args.branch, 'branch') : undefined;
+      
+      const simpleGit = await import('simple-git');
+      const git = simpleGit.simpleGit();
+      
+      // Clone the repository
+      const clonePath = path || `./${url.split('/').pop()?.replace('.git', '') || 'repository'}`;
+      
+      let cloneOptions: any = {};
+      if (branch) {
+        cloneOptions = { '--branch': branch, '--single-branch': true };
+      }
+      
+      await git.clone(url, clonePath, cloneOptions);
+      
+      // Set the new repository path
+      this.repoPath = clonePath;
+      this.gitParser = new GitHistoryParser(this.repoPath);
+      this.issueTracker = new IssueTracker(this.repoPath);
+      this.commitAnalyzer = new CommitAnalyzer(this.repoPath);
+      this.codeOwnership = new CodeOwnershipAnalyzer(this.repoPath);
+      this.historyModifier = new GitHistoryModifier(this.repoPath);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Repository cloned successfully`,
+              data: {
+                url,
+                clonePath,
+                branch: branch || 'default',
+                currentPath: this.repoPath
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async checkoutBranch(args: any) {
+    try {
+      const branch = Validator.validateString(args?.branch, 'branch');
+      const create = Validator.validateBoolean(args?.create, 'create') ?? false;
+      
+      const simpleGit = await import('simple-git');
+      const git = simpleGit.simpleGit(this.repoPath);
+      
+      // Check if branch exists
+      const branches = await git.branch();
+      const branchExists = branches.all.includes(branch) || branches.all.includes(`origin/${branch}`);
+      
+      if (!branchExists && !create) {
+        throw new ValidationError(`Branch '${branch}' does not exist. Use create=true to create it.`);
+      }
+      
+      if (create && !branchExists) {
+        await git.checkoutLocalBranch(branch);
+      } else {
+        await git.checkout(branch);
+      }
+      
+      const currentBranch = await git.branch();
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Switched to branch: ${branch}`,
+              data: {
+                branch,
+                created: create && !branchExists,
+                currentBranch: currentBranch.current
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  private async pullRepository(args: any) {
+    try {
+      const remote = args?.remote ? Validator.validateString(args.remote, 'remote') : 'origin';
+      const branch = args?.branch ? Validator.validateString(args.branch, 'branch') : undefined;
+      
+      const simpleGit = await import('simple-git');
+      const git = simpleGit.simpleGit(this.repoPath);
+      
+      // Get current branch if none specified
+      const currentBranch = branch || (await git.branch()).current;
+      
+      if (!currentBranch) {
+        throw new ValidationError('Could not determine branch to pull');
+      }
+      
+      // Pull the changes
+      const result = await git.pull(remote, currentBranch);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Successfully pulled changes from ${remote}/${currentBranch}`,
+              data: {
+                remote,
+                branch: currentBranch,
+                summary: result.summary,
+                files: result.files,
+                insertions: result.insertions,
+                deletions: result.deletions
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }, null, 2),
+          },
+        ],
+      };
+    }
   }
 
   async run() {

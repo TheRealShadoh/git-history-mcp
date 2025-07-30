@@ -1,6 +1,6 @@
 # Git History MCP Server
 
-A Model Context Protocol (MCP) server that analyzes git repository history to generate comprehensive GitLab issue data, executive summaries, and PDF reports with detailed code analysis.
+A Model Context Protocol (MCP) server that analyzes git repository history to generate comprehensive development reports, executive summaries, and PDF exports with detailed code analysis. Works with any Git repository without requiring external service integration.
 
 ## Features
 
@@ -18,14 +18,14 @@ A Model Context Protocol (MCP) server that analyzes git repository history to ge
 ### 📋 Documentation & Release Management
 - **Automated Changelogs**: Generate conventional commit-based changelogs between any two references
 - **Professional Release Notes**: Create comprehensive release documentation with highlights and statistics
-- **GitLab Issue Generation**: Convert git history into detailed, trackable issues with time estimates
+- **Issue Data Generation**: Convert git history into detailed, trackable issue data with time estimates
 - **Executive Reporting**: Generate high-level development summaries with metrics and visualizations
 
 ### 📄 Export & Integration
 - **PDF Export**: Convert markdown reports to professional PDFs with mermaid chart rendering
 - **Multiple Formats**: Support for JSON and Markdown output across all tools
-- **GitLab Integration**: Full compatibility with GitLab API for automated issue creation
-- **Duplicate Prevention**: Smart tracking to avoid creating duplicate issues
+- **Repository Management**: Clone, switch branches, and pull updates from remote repositories
+- **Flexible Repository Targeting**: Work with any local or remote Git repository
 
 ### 🚀 Advanced Capabilities
 - **Conventional Commits**: Parse and generate conventional commit formats automatically
@@ -52,20 +52,6 @@ npm run build
 
 ## Configuration
 
-### Environment Variables
-
-Create a `.env` file in your working directory:
-
-```env
-# Target git repository to analyze (defaults to current directory)
-GIT_REPO_PATH=/path/to/your/repo
-
-# GitLab configuration (optional, for issue creation)
-GITLAB_PERSONAL_ACCESS_TOKEN=your-token-here
-GITLAB_API_URL=https://gitlab.example.com
-GITLAB_READ_ONLY_MODE=true  # Set to false to enable issue creation
-```
-
 ### MCP Client Configuration
 
 Add to your MCP client configuration:
@@ -75,14 +61,19 @@ Add to your MCP client configuration:
   "mcpServers": {
     "git-history": {
       "command": "git-history-mcp",
-      "args": [],
-      "env": {
-        "GIT_REPO_PATH": "/path/to/your/repo"
-      }
+      "args": []
     }
   }
 }
 ```
+
+### Repository Management
+
+The server starts by analyzing the current working directory. You can:
+- Use `set_repository_path` to switch to a different local repository
+- Use `clone_repository` to clone and analyze remote repositories
+- Use `checkout_branch` to switch branches within the current repository
+- Use `pull_repository` to update the repository with latest changes
 
 ## Available Tools
 
@@ -147,9 +138,47 @@ Find commits with similar changes or patterns to a given commit.
 
 **Returns:** List of similar commits with similarity scores and reasoning.
 
+### Repository Management Tools
+
+#### 19. `set_repository_path`
+Set the target repository path for analysis.
+
+**Parameters:**
+- `path` (string, optional): Path to git repository (defaults to current working directory)
+
+**Returns:** Success status and updated repository path information.
+
+#### 20. `clone_repository`
+Clone a remote repository to work with.
+
+**Parameters:**
+- `url` (string, required): Repository URL to clone
+- `path` (string, optional): Local path to clone to
+- `branch` (string, optional): Specific branch to checkout after cloning
+
+**Returns:** Cloning status and new repository path information.
+
+#### 21. `checkout_branch`
+Switch to a different branch in the current repository.
+
+**Parameters:**
+- `branch` (string, required): Branch name to checkout
+- `create` (boolean, optional): Create the branch if it does not exist (default: false)
+
+**Returns:** Branch switching status and current branch information.
+
+#### 22. `pull_repository`
+Pull latest changes from remote repository.
+
+**Parameters:**
+- `remote` (string, optional): Remote name (default: origin)
+- `branch` (string, optional): Branch to pull (default: current branch)
+
+**Returns:** Pull status with summary of changes received.
+
 ### Code Ownership & Analysis Tools
 
-#### 7. `analyze_code_ownership`
+#### 23. `analyze_code_ownership`
 Analyze code ownership and expertise for files or directories.
 
 **Parameters:**
@@ -158,7 +187,7 @@ Analyze code ownership and expertise for files or directories.
 
 **Returns:** Detailed ownership analysis with primary owners, contributors, and expertise domains.
 
-#### 8. `analyze_commit_patterns`
+#### 24. `analyze_commit_patterns`
 Analyze commit patterns and developer productivity metrics.
 
 **Parameters:**
@@ -171,7 +200,7 @@ Analyze commit patterns and developer productivity metrics.
 
 > **SECURITY WARNING**: These tools can modify git history and are potentially destructive. Actual history rewriting is currently **DISABLED FOR SAFETY**. Only planning and analysis are enabled.
 
-#### 16. `plan_commit_message_rewrite`
+#### 25. `plan_commit_message_rewrite`
 🔒 **SAFE** - Creates a comprehensive plan for rewriting commit messages with AI-generated improvements.
 
 **Parameters:**
@@ -186,7 +215,7 @@ Analyze commit patterns and developer productivity metrics.
 - Backup strategy with branch and tag creation
 - Confirmation token system with expiration
 
-#### 17. `execute_commit_rewrite`
+#### 26. `execute_commit_rewrite`
 🚫 **DISABLED** - Execute a previously planned commit message rewrite (currently disabled for safety).
 
 **Parameters:**
@@ -195,7 +224,7 @@ Analyze commit patterns and developer productivity metrics.
 
 **Status:** This tool is intentionally disabled to prevent accidental history corruption. Manual alternatives are provided in the plan output.
 
-#### 18. `rollback_history_changes`
+#### 27. `rollback_history_changes`
 🔒 **SAFE** - Rollback to a backup reference if history modification goes wrong.
 
 **Parameters:**
@@ -219,10 +248,10 @@ git branch backup-$(date +%Y%m%d-%H%M%S)
 git tag backup-tag-$(date +%Y%m%d-%H%M%S)
 ```
 
-### GitLab Integration Tools
+### Issue Data & Reporting Tools
 
 #### 9. `generate_detailed_issues`
-Creates comprehensive GitLab issue data from git history.
+Creates comprehensive issue data from git history.
 
 **Parameters:**
 - `since_days` (number, optional): Days to look back (default: 90)
@@ -232,7 +261,7 @@ Creates comprehensive GitLab issue data from git history.
 - `default_labels` (array, optional): Labels to apply (default: ["automated", "historical"])
 - `time_estimate_multiplier` (number, optional): Adjust time estimates (default: 1.0)
 
-**Returns:** GitLab-compatible issue data with detailed descriptions and metadata.
+**Returns:** Detailed issue data with descriptions, time estimates, and metadata.
 
 #### 10. `generate_executive_development_summary`
 Creates executive-level development reports with visualizations.
@@ -271,6 +300,46 @@ Converts markdown files to PDF with mermaid chart rendering.
 - `rollback_history_changes`: Restore from backup if needed
 
 ## Usage Examples
+
+### Repository Management
+
+```javascript
+// Clone a remote repository
+{
+  "tool": "clone_repository",
+  "arguments": {
+    "url": "https://github.com/user/repo.git",
+    "branch": "main",
+    "path": "./my-analysis-repo"
+  }
+}
+
+// Switch to a different local repository
+{
+  "tool": "set_repository_path",
+  "arguments": {
+    "path": "/path/to/different/repo"
+  }
+}
+
+// Checkout a different branch
+{
+  "tool": "checkout_branch",
+  "arguments": {
+    "branch": "feature-branch",
+    "create": false
+  }
+}
+
+// Pull latest changes
+{
+  "tool": "pull_repository",
+  "arguments": {
+    "remote": "origin",
+    "branch": "main"
+  }
+}
+```
 
 ### Basic Git History Analysis
 
@@ -369,10 +438,10 @@ Converts markdown files to PDF with mermaid chart rendering.
 }
 ```
 
-### GitLab Integration
+### Issue Data Generation
 
 ```javascript
-// Generate issues for unprocessed branches
+// Generate issue data for unprocessed branches
 {
   "tool": "generate_detailed_issues",
   "arguments": {
@@ -465,16 +534,15 @@ git-history-mcp/
 ## Requirements
 
 - Node.js 18 or higher
-- Git repository with merge commit history
-- (Optional) GitLab access for issue creation
+- Git repository with commit history
 - (Optional) Chrome/Chromium for PDF generation
 
 ## Security Notes
 
-- Never commit `.env` files or expose access tokens
-- Use `GITLAB_READ_ONLY_MODE=true` for testing
 - The server runs with read-only git access by default
-- All GitLab operations require explicit token configuration
+- Repository cloning and pulling operations use standard Git protocols
+- No external service credentials required
+- All operations are performed locally unless explicitly pulling/cloning from remote
 
 ## Troubleshooting
 
@@ -483,7 +551,7 @@ git-history-mcp/
 1. **"No feature branches found"**
    - Ensure your repository uses merge commits (not squash)
    - Check the `since_days` parameter
-   - Verify the `GIT_REPO_PATH` is correct
+   - Verify you're in the correct repository directory
 
 2. **PDF generation fails**
    - Puppeteer requires Chrome/Chromium

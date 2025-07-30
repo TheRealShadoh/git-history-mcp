@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Git History MCP Server - A Model Context Protocol server that analyzes git history to generate comprehensive GitLab issue data with detailed code analysis, contributor information, time estimates, PDF export capabilities, and integration prompts for automated issue creation.
+Git History MCP Server - A Model Context Protocol server that analyzes git history to generate comprehensive development reports with detailed code analysis, contributor information, time estimates, PDF export capabilities, and repository management tools.
 
 ## Key Commands
 
@@ -30,20 +30,14 @@ npm run inspector
 ```
 
 ### Environment Setup
-Create a `.env` file with:
-```
-GIT_REPO_PATH=/path/to/target/repo
-GITLAB_PERSONAL_ACCESS_TOKEN=your-token
-GITLAB_API_URL=https://gitlab.example.com
-GITLAB_READ_ONLY_MODE=true  # Set to false to enable GitLab writes
-```
+No environment setup required. The server works with any Git repository in the current working directory or can be configured to work with remote repositories using the built-in repository management tools.
 
 ## Architecture
 
 ### Core Structure
 - **index.ts**: MCP server entry point implementing STDIO transport and tool handlers
 - **git-parser.ts**: Extracts git history, analyzes branches, and identifies features
-- **issue-generator.ts**: Transforms git data into detailed GitLab issue format
+- **issue-generator.ts**: Transforms git data into detailed issue format
 - **issue-tracker.ts**: Persistent tracking of created issues to prevent duplicates
 - **pdf-generator.ts**: Converts markdown to PDF with mermaid chart rendering via Puppeteer
 - **types.ts**: TypeScript interfaces for data structures
@@ -91,8 +85,14 @@ GITLAB_READ_ONLY_MODE=true  # Set to false to enable GitLab writes
 - `analyze_code_ownership`: Analyzes code ownership and expertise for files/directories
 - `analyze_commit_patterns`: Analyzes developer productivity metrics and commit patterns
 
-### GitLab Integration (2 tools)
-- `generate_detailed_issues`: Creates comprehensive GitLab issue data from git history
+### Repository Management (4 tools)
+- `set_repository_path`: Switch to a different local repository path
+- `clone_repository`: Clone remote repositories for analysis
+- `checkout_branch`: Switch branches within the current repository  
+- `pull_repository`: Pull latest changes from remote repositories
+
+### Issue Data & Reporting (2 tools)
+- `generate_detailed_issues`: Creates comprehensive issue data from git history
 - `generate_executive_development_summary`: Creates executive-level development reports
 
 ### Export & Utilities (5 tools)
@@ -116,8 +116,8 @@ echo '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "pa
 
 1. **STDIO Transport**: Server uses stdin/stdout for JSON-RPC - no console.log allowed
 2. **Async Operations**: All git operations and PDF generation are async
-3. **File Permissions**: Issue tracker writes to `.gitlab-issue-tracker.json`
-4. **Security**: Never commit `.env` file or expose tokens
+3. **File Permissions**: Issue tracker writes to `.git-history-issue-tracker.json`
+4. **Security**: Repository operations use standard Git protocols
 5. **PDF Generation**: Requires headless Chrome via Puppeteer
 
 ## Common Development Tasks
