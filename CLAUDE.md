@@ -38,6 +38,7 @@ No environment setup required. The server works with any Git repository in the c
 - **index.ts**: MCP server entry point implementing STDIO transport and tool handlers
 - **git-parser.ts**: Extracts git history, analyzes branches, and identifies features
 - **issue-generator.ts**: Transforms git data into detailed issue format
+- **executive-summary-generator.ts**: Enhanced executive summary generator with accurate time estimation
 - **issue-tracker.ts**: Persistent tracking of created issues to prevent duplicates
 - **pdf-generator.ts**: Converts markdown to PDF with mermaid chart rendering via Puppeteer
 - **types.ts**: TypeScript interfaces for data structures
@@ -47,6 +48,7 @@ No environment setup required. The server works with any Git repository in the c
 2. **Async Pipeline**: Git parsing → Issue generation → PDF export flows asynchronously
 3. **Persistent State**: Issue tracker uses JSON file storage for cross-session tracking
 4. **Chart Generation**: Dynamic mermaid charts embedded in markdown and rendered in PDFs
+5. **Enhanced Analytics**: Evidence-based time estimation with quality assurance overhead multipliers
 
 ## Distribution Requirements ✅
 
@@ -93,7 +95,7 @@ No environment setup required. The server works with any Git repository in the c
 
 ### Issue Data & Reporting (2 tools)
 - `generate_detailed_issues`: Creates comprehensive issue data from git history
-- `generate_executive_development_summary`: Creates executive-level development reports
+- `generate_executive_development_summary`: Creates enhanced executive-level development reports with accurate time estimation, individual developer analysis, temporal patterns, and actionable recommendations
 
 ### Export & Utilities (5 tools)
 - `export_markdown_to_pdf`: Converts markdown reports to PDF with mermaid chart rendering
@@ -128,6 +130,79 @@ When implementing new features:
 3. Update types.ts with new interfaces
 4. Test via direct JSON-RPC before MCP client integration
 5. Ensure no stdout output in implementation
+
+## 📊 Enhanced Executive Summary Generator
+
+The `generate_executive_development_summary` tool has been significantly enhanced with a comprehensive analytics engine that provides accurate, evidence-based reporting for executive decision-making.
+
+### Key Features
+
+#### 1. Accurate Time Estimation Methodology
+- **Base Development Time**: Calculated from actual code changes and file modifications
+- **Quality Assurance Overhead**: Applied based on complexity category:
+  - High complexity (Security, Infrastructure, Architecture): +30% 
+  - Medium complexity (Features, Integration): +20%
+  - Low complexity (Bug fixes, Documentation): +15%
+- **Phase Distribution**: Research (15%), Development (40%), Testing (25%), Review (15%), Documentation (5%)
+- **Contribution Attribution**: Hours distributed based on actual code contribution percentages
+
+#### 2. Individual Developer Analysis
+- **Total Hours**: Accurate effort investment including all development phases
+- **Specialization Areas**: Automatically identified based on file patterns and commit history
+- **Peak Productivity Patterns**: Monthly analysis and contribution trends
+- **Skills Deployment**: Breakdown across infrastructure, features, security, bugfixes, and documentation
+- **Branch Contributions**: Detailed role analysis (primary, secondary, reviewer) with complexity ratings
+
+#### 3. Temporal Analysis
+- **Monthly Breakdown**: Hours, active developers, major deliverables, and utilization rates
+- **Seasonal Patterns**: Identification of high/low productivity periods with explanations
+- **Sprint Effectiveness**: Cycle time analysis, release frequency, and velocity trends
+- **Capacity Planning**: Utilization tracking and constraint identification
+
+#### 4. Executive Dashboard Metrics
+- **Team Metrics**: Total developers, average hours per developer, workload distribution ratios
+- **Velocity Trends**: Month-over-month comparison with percentage changes
+- **Resource Distribution**: Investment breakdown by category (features, infrastructure, fixes)
+- **Critical Path Analysis**: Major deliverables, blockers, and risk area identification
+
+#### 5. Key Insights & Recommendations
+- **Productivity Drivers**: Evidence-based identification of what drives team performance
+- **Resource Optimization**: Opportunities for better resource allocation
+- **Retention Risks**: Single points of failure and workload imbalance warnings
+- **Capacity Constraints**: Over-utilization periods and planning recommendations
+- **Actionable Recommendations**: Immediate, short-term, and long-term action items
+
+#### 6. Reporting Integrity
+- **Unfiltered Accuracy**: Reports actual contribution disparities without artificial balancing
+- **Evidence-Based**: All estimates grounded in observable git data
+- **Transparent Methodology**: Clear documentation of all estimation assumptions
+- **Executive Ready**: Structured for leadership consumption with key insights highlighted
+
+### Usage
+
+```bash
+# Basic usage
+{
+  "tool": "generate_executive_development_summary",
+  "arguments": {
+    "since_days": 180,
+    "organization_name": "ACME Corp",
+    "include_pdf": true
+  }
+}
+```
+
+### Output Structure
+
+The enhanced generator produces:
+1. **Executive Summary**: Key findings and recommendations
+2. **Individual Developer Analysis**: Detailed contribution breakdown with hours
+3. **Temporal Analysis**: Monthly patterns and seasonal trends
+4. **Resource Allocation**: Investment distribution across categories
+5. **Major Deliverables**: High-effort branches with complexity analysis
+6. **Key Insights**: Productivity drivers, risks, and constraints
+7. **Recommendations**: Immediate, short-term, and long-term actions
+8. **Methodology**: Transparent explanation of estimation approach
 
 ## 🚀 Improvement Plan (2025)
 

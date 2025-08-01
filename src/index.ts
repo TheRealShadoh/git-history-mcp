@@ -13,6 +13,7 @@ import { GitHistoryParser } from './git-parser.js';
 import { IssueTracker } from './issue-tracker.js';
 import { IssueGenerator } from './issue-generator.js';
 import { PdfGenerator, PdfExportOptions } from './pdf-generator.js';
+import { ExecutiveSummaryGenerator } from './executive-summary-generator.js';
 import { CommitAnalyzer } from './commit-analyzer.js';
 import { CodeOwnershipAnalyzer } from './code-ownership.js';
 import { GitHistoryModifier } from './git-history-modifier.js';
@@ -28,6 +29,7 @@ class GitHistoryMCPServer {
   private issueTracker: IssueTracker;
   private issueGenerator: IssueGenerator;
   private pdfGenerator: PdfGenerator;
+  private executiveSummaryGenerator: ExecutiveSummaryGenerator;
   private commitAnalyzer: CommitAnalyzer;
   private codeOwnership: CodeOwnershipAnalyzer;
   private historyModifier: GitHistoryModifier;
@@ -53,6 +55,7 @@ class GitHistoryMCPServer {
     this.issueTracker = new IssueTracker(this.repoPath);
     this.issueGenerator = new IssueGenerator();
     this.pdfGenerator = new PdfGenerator();
+    this.executiveSummaryGenerator = new ExecutiveSummaryGenerator();
     this.commitAnalyzer = new CommitAnalyzer(this.repoPath);
     this.codeOwnership = new CodeOwnershipAnalyzer(this.repoPath);
     this.historyModifier = new GitHistoryModifier(this.repoPath);
@@ -213,7 +216,7 @@ class GitHistoryMCPServer {
         },
         {
           name: 'generate_executive_development_summary',
-          description: 'Generate a comprehensive executive development summary with team metrics, time estimates, and visualizations',
+          description: 'Generate an enhanced executive-level development activity summary with accurate time estimation, individual developer analysis, temporal patterns, resource allocation insights, and actionable recommendations for leadership decisions',
           inputSchema: {
             type: 'object',
             properties: {
@@ -235,6 +238,11 @@ class GitHistoryMCPServer {
                 type: 'boolean',
                 description: 'Whether to consolidate similar author names (default: true)',
                 default: true,
+              },
+              organization_name: {
+                type: 'string',
+                description: 'Organization name for report branding (default: "Organization")',
+                default: 'Organization',
               },
             },
           },
@@ -1442,6 +1450,22 @@ class GitHistoryMCPServer {
       
       const include_pdf = Validator.validateBoolean(args?.include_pdf, 'include_pdf') ?? true;
       const consolidate_authors = Validator.validateBoolean(args?.consolidate_authors, 'consolidate_authors') ?? true;
+      const organization_name = Validator.validateString(args?.organization_name, 'organization_name') || 'Organization';
+      
+      // Configure the enhanced executive summary generator
+      this.executiveSummaryGenerator = new ExecutiveSummaryGenerator({
+        lookbackDays: since_days,
+        consolidateAuthors: consolidate_authors,
+        includeBranchBreakdown: true,
+        majorDeliverableThreshold: 40,
+        organizationName: organization_name,
+        qaOverheadMultipliers: {
+          high: 1.30,    // +30% for Security, Infrastructure, Architecture
+          medium: 1.20,  // +20% for Features, VDI, Integration
+          low: 1.15      // +15% for Bug fixes, Configuration, Documentation
+        }
+      });
+      
       // Parse git history
       const branches = await this.gitParser.getFeatureBranches(since_days);
       
@@ -1450,20 +1474,21 @@ class GitHistoryMCPServer {
         ? this.consolidateAuthors(branches) 
         : branches;
       
-      // Generate comprehensive summary
-      const summary = this.generateExecutiveSummaryData(consolidatedData, since_days);
+      // Generate comprehensive executive report using enhanced generator
+      const reportData = this.executiveSummaryGenerator.generateExecutiveReport(consolidatedData);
       
-      // Generate markdown report
-      const markdownContent = this.generateExecutiveMarkdown(summary);
+      // Generate enhanced markdown report
+      const markdownContent = this.executiveSummaryGenerator.generateMarkdownReport(reportData);
       
       // Determine output paths
       const basePath = output_path || process.cwd();
-      const markdownPath = `${basePath}/KILN-Executive-Development-Summary.md`;
-      const pdfPath = `${basePath}/KILN-Executive-Development-Summary.pdf`;
+      const orgPrefix = organization_name.replace(/\s+/g, '-');
+      const markdownPath = `${basePath}/${orgPrefix}-Executive-Development-Summary.md`;
+      const pdfPath = `${basePath}/${orgPrefix}-Executive-Development-Summary.pdf`;
       
       // Write markdown file
-      const fs = await import('fs-extra');
-      await fs.writeFile(markdownPath, markdownContent);
+      const fs = await import('fs/promises');
+      await fs.writeFile(markdownPath, markdownContent, 'utf8');
       
       let pdfOutputPath: string | null = null;
       
@@ -1486,17 +1511,28 @@ class GitHistoryMCPServer {
             type: 'text',
             text: JSON.stringify({
               success: true,
-              message: `Executive development summary generated successfully`,
+              message: `Enhanced executive development summary generated successfully`,
               data: {
                 markdown_file: markdownPath,
                 pdf_file: pdfOutputPath,
                 summary_stats: {
                   total_branches: branches.length,
-                  total_hours: summary.totalHours,
-                  unique_developers: summary.developers.length,
+                  total_hours: reportData.dashboardMetrics.totalEngineeringHours,
+                  unique_developers: reportData.individualDeveloperAnalysis.length,
                   time_period_days: since_days,
-                  author_consolidation: consolidate_authors
-                }
+                  author_consolidation: consolidate_authors,
+                  organization_name: organization_name,
+                  major_deliverables: reportData.dashboardMetrics.criticalPathAnalysis.majorDeliverables.length,
+                  velocity_trend: reportData.dashboardMetrics.velocityTrends.trend,
+                  workload_ratio: reportData.dashboardMetrics.teamMetrics.hoursDisparity.ratio.toFixed(1)
+                },
+                key_insights: {
+                  productivity_drivers: reportData.keyInsights.productivityDrivers,
+                  retention_risks: reportData.keyInsights.retentionRisks,
+                  capacity_constraints: reportData.keyInsights.capacityConstraints,
+                  resource_optimization: reportData.keyInsights.resourceOptimizationOpportunities
+                },
+                recommendations: reportData.recommendations
               }
             }, null, 2),
           },

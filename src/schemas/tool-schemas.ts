@@ -120,11 +120,11 @@ export const exportMarkdownToPdfSchema = z.object({
 });
 
 export const generateExecutiveDevelopmentSummarySchema = z.object({
-  since_days: z.number().min(1).max(3650).default(90).optional(),
-  include_charts: z.boolean().default(true).optional(),
-  include_recommendations: z.boolean().default(true).optional(),
-  export_pdf: z.boolean().default(false).optional(),
-  output_filename: z.string().regex(/^[a-zA-Z0-9_\-]+\.pdf$/, 'Must be a valid PDF filename').optional(),
+  since_days: z.number().min(1).max(3650).default(180).optional(),
+  output_path: z.string().optional(),
+  include_pdf: z.boolean().default(true).optional(),
+  consolidate_authors: z.boolean().default(true).optional(),
+  organization_name: z.string().min(1).max(100).default('Organization').optional(),
 });
 
 // Git History Modification Schemas

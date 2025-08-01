@@ -1,0 +1,161 @@
+{
+  "agent": {
+    "name": "executive-summary-generator",
+    "version": "1.0.0",
+    "description": "Generates comprehensive executive-level development activity summaries with accurate time estimation and actionable insights",
+    "category": "analytics",
+    "tags": ["git", "analytics", "executive", "reporting", "time-estimation", "productivity"],
+    "author": "git-history-mcp",
+    "license": "MIT"
+  },
+  "capabilities": {
+    "primary_functions": [
+      "git_history_analysis",
+      "time_estimation", 
+      "developer_analysis",
+      "temporal_analysis",
+      "risk_assessment",
+      "executive_reporting"
+    ],
+    "input_formats": ["git_repository", "json_config"],
+    "output_formats": ["markdown", "pdf", "json"],
+    "supported_repositories": ["git"],
+    "languages": ["any"],
+    "analysis_types": [
+      "individual_contributor_analysis",
+      "team_productivity_analysis", 
+      "resource_allocation_analysis",
+      "temporal_pattern_analysis",
+      "risk_identification",
+      "capacity_planning"
+    ]
+  },
+  "requirements": {
+    "system": {
+      "git": ">=2.0.0",
+      "node": ">=18.0.0"
+    },
+    "tools_required": [
+      "git",
+      "file_system_access",
+      "markdown_generation",
+      "pdf_generation"
+    ],
+    "permissions": [
+      "read_git_history",
+      "write_reports",
+      "access_file_system"
+    ]
+  },
+  "configuration": {
+    "default_parameters": {
+      "analysis_period_days": 180,
+      "major_deliverable_threshold_hours": 40,
+      "consolidate_similar_authors": true,
+      "include_pdf_export": true,
+      "qa_overhead_multipliers": {
+        "high_complexity": 1.30,
+        "medium_complexity": 1.20,
+        "low_complexity": 1.15
+      },
+      "phase_distribution": {
+        "research": 0.15,
+        "development": 0.40,
+        "testing": 0.25,
+        "review": 0.15,
+        "documentation": 0.05
+      }
+    },
+    "customizable_parameters": [
+      "organization_name",
+      "analysis_period_days",
+      "output_path",
+      "major_deliverable_threshold_hours",
+      "include_pdf_export",
+      "consolidate_similar_authors"
+    ]
+  },
+  "integration": {
+    "supported_frameworks": [
+      "mcp_server",
+      "standalone_cli",
+      "api_service",
+      "github_actions",
+      "ci_cd_pipeline"
+    ],
+    "communication_protocols": [
+      "json_rpc",
+      "rest_api",
+      "cli_args",
+      "config_file"
+    ],
+    "deployment_methods": [
+      "npm_package",
+      "docker_container",
+      "standalone_binary",
+      "cloud_function"
+    ]
+  },
+  "quality_metrics": {
+    "accuracy_targets": {
+      "time_estimation_variance": "±20%",
+      "completeness_threshold": "95%",
+      "false_positive_rate": "<5%"
+    },
+    "performance_targets": {
+      "max_processing_time": "60s",
+      "memory_usage": "<512MB", 
+      "supported_repo_size": "10k commits"
+    },
+    "reliability_targets": {
+      "uptime": "99.9%",
+      "error_rate": "<0.1%",
+      "data_consistency": "100%"
+    }
+  },
+  "output_specification": {
+    "report_sections": [
+      "executive_dashboard_metrics",
+      "individual_developer_analysis", 
+      "temporal_analysis",
+      "resource_allocation",
+      "major_deliverables",
+      "key_insights",
+      "recommendations",
+      "methodology"
+    ],
+    "insight_categories": [
+      "productivity_drivers",
+      "resource_optimization_opportunities",
+      "retention_risks", 
+      "capacity_constraints"
+    ],
+    "recommendation_types": [
+      "immediate_actions",
+      "short_term_initiatives",
+      "long_term_strategy"
+    ]
+  },
+  "validation": {
+    "input_validation": {
+      "repository_path": "valid_git_repository",
+      "analysis_period_days": "1-3650",
+      "organization_name": "non_empty_string"
+    },
+    "output_validation": {
+      "required_sections": "all_sections_present",
+      "data_consistency": "cross_reference_checks",
+      "format_compliance": "markdown_and_json_valid"
+    }
+  },
+  "error_handling": {
+    "graceful_degradation": true,
+    "partial_results": true,
+    "error_reporting": "structured_json",
+    "fallback_strategies": [
+      "reduced_analysis_scope",
+      "cached_results",
+      "approximate_estimates"
+    ]
+  }
+}

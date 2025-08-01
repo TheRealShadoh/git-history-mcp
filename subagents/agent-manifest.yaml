@@ -1,0 +1,202 @@
+apiVersion: v1
+kind: Agent
+metadata:
+  name: executive-summary-generator
+  version: 1.0.0
+  description: Executive Development Activity Summary Generator
+  category: analytics
+  tags:
+    - git
+    - analytics
+    - executive
+    - reporting
+    - time-estimation
+    - productivity
+  author: git-history-mcp
+  license: MIT
+  
+spec:
+  runtime:
+    type: node
+    version: ">=18.0.0"
+    
+  dependencies:
+    system:
+      - name: git
+        version: ">=2.0.0"
+        required: true
+      - name: node
+        version: ">=18.0.0" 
+        required: true
+        
+  interface:
+    input:
+      format: json
+      schema:
+        type: object
+        properties:
+          repository_path:
+            type: string
+            description: Path to git repository
+            required: true
+          analysis_period_days:
+            type: integer
+            minimum: 1
+            maximum: 3650
+            default: 180
+            description: Number of days to analyze
+          organization_name:
+            type: string
+            default: "Organization"
+            description: Organization name for branding
+          output_path:
+            type: string
+            description: Output directory for reports
+          include_pdf_export:
+            type: boolean
+            default: true
+            description: Generate PDF version
+          consolidate_similar_authors:
+            type: boolean
+            default: true
+            description: Merge similar author names
+          major_deliverable_threshold_hours:
+            type: integer
+            default: 40
+            description: Minimum hours for major deliverable
+            
+    output:
+      format: json
+      schema:
+        type: object
+        properties:
+          success:
+            type: boolean
+          message:
+            type: string
+          data:
+            type: object
+            properties:
+              markdown_file:
+                type: string
+                description: Path to generated markdown report
+              pdf_file:
+                type: string
+                description: Path to generated PDF report
+              summary_stats:
+                type: object
+                properties:
+                  total_branches:
+                    type: integer
+                  total_hours:
+                    type: number
+                  unique_developers:
+                    type: integer
+                  time_period_days:
+                    type: integer
+                  major_deliverables:
+                    type: integer
+                  velocity_trend:
+                    type: string
+                    enum: [accelerating, stable, decelerating]
+                  workload_ratio:
+                    type: string  
+              key_insights:
+                type: object
+                properties:
+                  productivity_drivers:
+                    type: array
+                    items:
+                      type: string
+                  retention_risks:
+                    type: array
+                    items:
+                      type: string
+                  capacity_constraints:
+                    type: array
+                    items:
+                      type: string
+                  resource_optimization:
+                    type: array
+                    items:
+                      type: string
+              recommendations:
+                type: object
+                properties:
+                  immediate:
+                    type: array
+                    items:
+                      type: string
+                  shortTerm:
+                    type: array
+                    items:
+                      type: string
+                  longTerm:
+                    type: array
+                    items:
+                      type: string
+          error:
+            type: string
+            description: Error message if success is false
+            
+  capabilities:
+    functions:
+      - name: analyze_git_history
+        description: Parse and analyze git repository history
+      - name: estimate_development_time
+        description: Calculate accurate time estimates for branches
+      - name: analyze_developer_contributions
+        description: Individual contributor analysis
+      - name: identify_temporal_patterns
+        description: Time-based productivity analysis
+      - name: assess_risks
+        description: Identify team and project risks
+      - name: generate_executive_report
+        description: Create comprehensive executive summary
+        
+    analysis_types:
+      - individual_contributor_analysis
+      - team_productivity_analysis
+      - resource_allocation_analysis
+      - temporal_pattern_analysis
+      - risk_identification
+      - capacity_planning
+      
+  quality:
+    accuracy:
+      time_estimation_variance: "±20%"
+      completeness_threshold: 95
+      false_positive_rate: 5
+      
+    performance:
+      max_processing_time: 60
+      memory_usage_mb: 512
+      max_repo_commits: 10000
+      
+    reliability:
+      uptime_percentage: 99.9
+      error_rate_percentage: 0.1
+      data_consistency_percentage: 100
+      
+  integration:
+    deployment:
+      methods:
+        - npm_package
+        - docker_container
+        - standalone_binary
+        - mcp_server
+        
+    communication:
+      protocols:
+        - json_rpc
+        - rest_api
+        - cli_args
+        - config_file
+        
+    frameworks:
+      supported:
+        - mcp_server
+        - standalone_cli
+        - api_service
+        - github_actions
+        - ci_cd_pipeline
