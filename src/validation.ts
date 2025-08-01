@@ -1,10 +1,37 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import { z, ZodError } from 'zod';
+import { toolSchemas } from './schemas/index.js';
 
 export class ValidationError extends McpError {
-  constructor(message: string) {
-    super(ErrorCode.InvalidParams, message);
+  constructor(message: string, data?: unknown) {
+    super(ErrorCode.InvalidParams, message, data);
+  }
+}
+
+/**
+ * Validate tool arguments using Zod schema
+ */
+export function validateToolArguments<T extends keyof typeof toolSchemas>(
+  toolName: T,
+  args: unknown
+): z.infer<typeof toolSchemas[T]> {
+  const schema = toolSchemas[toolName];
+  if (!schema) {
+    throw new ValidationError(`No schema found for tool: ${toolName}`);
+  }
+
+  try {
+    return schema.parse(args);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const issues = error.issues.map(issue => 
+        `${issue.path.join('.')}: ${issue.message}`
+      ).join(', ');
+      throw new ValidationError(`Invalid arguments: ${issues}`, error.issues);
+    }
+    throw error;
   }
 }
 

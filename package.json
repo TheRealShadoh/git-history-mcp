@@ -31,7 +31,8 @@
     "mermaid": "^10.6.0",
     "path": "^0.12.7",
     "puppeteer": "^21.0.0",
-    "simple-git": "^3.20.0"
+    "simple-git": "^3.20.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
