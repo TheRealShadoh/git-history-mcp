@@ -52,6 +52,128 @@ npm run build
 
 ## Configuration
 
+### GitLab Integration
+
+The MCP server supports comprehensive GitLab integration for both GitLab.com and self-hosted GitLab instances.
+
+#### GitLab API Token Setup
+
+1. **Create a Personal Access Token:**
+   - Go to GitLab → User Settings → Access Tokens
+   - Create a new token with these scopes:
+     - `api` - Full API access for repository operations
+     - `read_repository` - Repository data access  
+     - `write_repository` - For creating issues, merge requests, releases
+
+2. **Configure the GitLab provider using the MCP tool:**
+
+   **For GitLab.com:**
+   ```json
+   {
+     "name": "configure_api_provider",
+     "arguments": {
+       "provider": "gitlab",
+       "token": "your-personal-access-token"
+     }
+   }
+   ```
+
+   **For Self-hosted GitLab:**
+   ```json
+   {
+     "name": "configure_api_provider",
+     "arguments": {
+       "provider": "gitlab",
+       "baseURL": "https://your-gitlab.com/api/v4",
+       "token": "your-personal-access-token"
+     }
+   }
+   ```
+
+   **For Self-hosted GitLab with SSL Certificate Issues:**
+   ```json
+   {
+     "name": "configure_api_provider",
+     "arguments": {
+       "provider": "gitlab",
+       "baseURL": "https://gitlab.your-company.com/api/v4", 
+       "token": "your-personal-access-token",
+       "ignoreCertificateErrors": true,
+       "timeout": 60000
+     }
+   }
+   ```
+
+#### GitLab Configuration Options
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `provider` | string | - | Must be "gitlab" |
+| `baseURL` | string | `https://gitlab.com/api/v4` | API base URL for self-hosted instances |
+| `token` | string | - | Personal access token (recommended) |
+| `username` | string | - | Username for basic auth (alternative) |
+| `password` | string | - | Password for basic auth (alternative) |
+| `ignoreCertificateErrors` | boolean | `false` | Ignore SSL certificate errors |
+| `timeout` | number | `30000` | Request timeout in milliseconds |
+
+#### Supported GitLab Features
+
+- **Repository Analysis**: Full git history parsing and analysis
+- **Issue Management**: Create and manage GitLab issues with labels, assignees, weights
+- **Merge Requests**: GitLab's equivalent to pull requests
+- **Release Management**: Create and manage GitLab releases
+- **Subgroup Support**: Handle complex project paths like `gitlab.com/group/subgroup/repo`
+- **Branch Management**: Switch branches and analyze different refs
+
+#### GitLab Issue Creation
+
+Configure issue generation with GitLab-specific options:
+
+```json
+{
+  "name": "generate_detailed_issues",
+  "arguments": {
+    "sinceDays": 90,
+    "defaultState": "opened",
+    "defaultLabels": ["feature", "automated", "backlog"],
+    "includeCodeDiffs": true,
+    "timeEstimateMultiplier": 1.0
+  }
+}
+```
+
+**GitLab Issue Features:**
+- **Labels**: Multiple label support
+- **Assignees**: Requires GitLab user IDs (not usernames)
+- **Weight**: Story point estimation
+- **Milestones**: Link to GitLab milestones
+- **Due Dates**: Set issue due dates
+- **State Management**: Open/closed issue states
+
+#### Troubleshooting GitLab Connection
+
+1. **SSL Certificate Issues (Self-hosted):**
+   ```json
+   {
+     "ignoreCertificateErrors": true
+   }
+   ```
+
+2. **Connection Timeouts:**
+   ```json
+   {
+     "timeout": 60000
+   }
+   ```
+
+3. **API Rate Limits:**
+   - Use personal access tokens for higher rate limits
+   - Consider shorter time ranges for large repositories
+
+4. **Subgroup Path Issues:**
+   - The server automatically handles URL encoding for special characters
+   - Supports nested group structures like `group/subgroup/project`
+
 ### MCP Client Configuration
 
 Add to your MCP client configuration:
@@ -97,26 +219,16 @@ Add to your MCP client configuration:
 
 4. **Restart Claude Desktop** to load the new MCP server.
 
-### Claude CLI Setup
+### Claude Code CLI Setup
 
-1. **Install Claude CLI:**
-   ```bash
-   # Install Claude CLI if you haven't already
-   npm install -g @anthropics/claude-cli
-   ```
-
-2. **Install the MCP server:**
+1. **Install the MCP server:**
    ```bash
    npm install -g git-history-mcp-server
    ```
 
-3. **Configure Claude CLI with MCP server:**
+2. **Configure MCP server:**
    
-   Create or edit your Claude CLI configuration file:
-   - **Global config**: `~/.config/claude/settings.json`
-   - **Project config**: `.claude/settings.json` (in your project directory)
-
-4. **Add the MCP server configuration:**
+   Create an `.mcp.json` file in your project root:
    ```json
    {
      "mcpServers": {
@@ -128,18 +240,41 @@ Add to your MCP client configuration:
    }
    ```
 
-5. **Start Claude CLI with MCP support:**
+3. **Update Claude Code settings (optional):**
+   
+   In `.claude/settings.local.json` (or `.claude/settings.json`) add permissions:
+   ```json
+   {
+     "permissions": {
+       "allow": [
+         "mcp__git-history__*"
+       ]
+     },
+     "enabledMcpjsonServers": [
+       "git-history"
+     ],
+     "enableAllProjectMcpServers": true
+   }
+   ```
+
+4. **Start Claude Code:**
    ```bash
    # Navigate to your git repository
    cd /path/to/your/git/repo
    
-   # Start Claude CLI (it will automatically load MCP servers)
+   # Start Claude Code (it will automatically load MCP servers)
    claude
    ```
 
-### Local Development Setup (Claude CLI)
+5. **Verify MCP server is loaded:**
+   ```bash
+   # Inside Claude Code, run:
+   /mcp
+   ```
 
-For development or latest version with Claude CLI:
+### Local Development Setup (Claude Code)
+
+For development or latest version with Claude Code:
 
 1. **Clone and build:**
    ```bash
@@ -149,13 +284,7 @@ For development or latest version with Claude CLI:
    npm run build
    ```
 
-2. **Create project-specific configuration:**
-   ```bash
-   # In your git repository directory
-   mkdir -p .claude
-   ```
-
-3. **Configure with local path (.claude/settings.json):**
+2. **Configure with local path (.mcp.json in your project):**
    ```json
    {
      "mcpServers": {
@@ -167,7 +296,19 @@ For development or latest version with Claude CLI:
    }
    ```
 
-4. **Start Claude CLI:**
+3. **Optional: Configure permissions (.claude/settings.local.json):**
+   ```json
+   {
+     "permissions": {
+       "allow": [
+         "mcp__git-history__*"
+       ]
+     },
+     "enableAllProjectMcpServers": true
+   }
+   ```
+
+4. **Start Claude Code:**
    ```bash
    claude
    ```
@@ -236,30 +377,33 @@ All 27 tools are available through natural language. Key capabilities include:
    - Ensure the executable has proper permissions: `chmod +x dist/index.js`
    - Check that Node.js is accessible from Claude Desktop's environment
 
-#### Claude CLI Issues
+#### Claude Code Issues
 
-1. **MCP server not loading in CLI:**
-   - Check configuration file location: `.claude/settings.json` or `~/.config/claude/settings.json`
-   - Verify JSON syntax is valid
-   - Ensure you're running `claude` from the correct directory
+1. **MCP server not loading:**
+   - Verify `.mcp.json` is in the project root (not in `.claude/` directory)
+   - Check JSON syntax is valid in `.mcp.json`
+   - Run `/mcp` inside Claude Code to verify server status
+   - Run `/doctor` to check for configuration issues
 
 2. **Configuration file not found:**
    ```bash
-   # Create the directory if it doesn't exist
-   mkdir -p .claude
-   # Or for global config
-   mkdir -p ~/.config/claude
+   # Ensure .mcp.json is in project root
+   ls -la .mcp.json
+   
+   # Create if missing
+   touch .mcp.json
    ```
 
 3. **Server connection issues:**
    - Check that the MCP server executable is accessible
-   - Verify Node.js is in PATH for Claude CLI
+   - Verify Node.js is in PATH for Claude Code
    - Test the server independently first
+   - Check permissions in `.claude/settings.local.json`
 
-4. **Project vs Global configuration:**
-   - Project config (`.claude/settings.json`) takes precedence over global
-   - Use project config for repository-specific analysis
-   - Use global config for general Git repository analysis
+4. **Permission issues:**
+   - Add `"mcp__git-history__*"` to allowed permissions
+   - Enable project MCP servers with `"enableAllProjectMcpServers": true`
+   - Use `"enabledMcpjsonServers": ["git-history"]` to specifically enable the server
 
 #### General Testing
 

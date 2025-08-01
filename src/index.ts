@@ -16,6 +16,7 @@ import { PdfGenerator, PdfExportOptions } from './pdf-generator.js';
 import { CommitAnalyzer } from './commit-analyzer.js';
 import { CodeOwnershipAnalyzer } from './code-ownership.js';
 import { GitHistoryModifier } from './git-history-modifier.js';
+import { HourEstimator } from './hour-estimator.js';
 import { FeatureBranch, DetailedIssueData, IssueGenerationConfig } from './types.js';
 import { Validator, ValidationError } from './validation.js';
 import { ApiManager, ProviderConfig } from './api-manager.js';
@@ -30,6 +31,7 @@ class GitHistoryMCPServer {
   private commitAnalyzer: CommitAnalyzer;
   private codeOwnership: CodeOwnershipAnalyzer;
   private historyModifier: GitHistoryModifier;
+  private hourEstimator: HourEstimator;
   private apiManager: ApiManager;
   private repoPath: string;
 
@@ -54,6 +56,7 @@ class GitHistoryMCPServer {
     this.commitAnalyzer = new CommitAnalyzer(this.repoPath);
     this.codeOwnership = new CodeOwnershipAnalyzer(this.repoPath);
     this.historyModifier = new GitHistoryModifier(this.repoPath);
+    this.hourEstimator = new HourEstimator(this.repoPath);
     this.apiManager = new ApiManager();
 
     this.setupToolHandlers();
@@ -909,6 +912,65 @@ class GitHistoryMCPServer {
             },
           },
         },
+        {
+          name: 'estimate_branch_hours',
+          description: 'Estimate development hours for feature branches with copied code analysis',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              branch_names: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Array of branch names to estimate (optional, estimates all recent if not provided)',
+              },
+              since_days: {
+                type: 'number',
+                description: 'Number of days to look back if no branch names provided (default: 90)',
+                default: 90,
+              },
+            },
+          },
+        },
+        {
+          name: 'analyze_copied_code',
+          description: 'Analyze git diff to identify copied vs original code patterns',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              commit_hash: {
+                type: 'string',
+                description: 'Commit hash to analyze for copied code patterns',
+              },
+              branch_name: {
+                type: 'string',
+                description: 'Branch name to analyze (alternative to commit_hash)',
+              },
+            },
+          },
+        },
+        {
+          name: 'generate_accurate_executive_summary',
+          description: 'Generate executive summary with accurate hour estimates based on copied code analysis',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              since_days: {
+                type: 'number',
+                description: 'Number of days to look back in git history (default: 180)',
+                default: 180,
+              },
+              include_pdf: {
+                type: 'boolean',
+                description: 'Whether to also generate PDF export (default: true)',
+                default: true,
+              },
+              output_path: {
+                type: 'string',
+                description: 'Output path for the generated report files (optional, defaults to current directory)',
+              },
+            },
+          },
+        },
       ],
     }));
 
@@ -1016,6 +1078,15 @@ class GitHistoryMCPServer {
 
           case 'get_commits':
             return await this.getCommits(request.params.arguments);
+
+          case 'estimate_branch_hours':
+            return await this.estimateBranchHoursNew(request.params.arguments);
+
+          case 'analyze_copied_code':
+            return await this.analyzeCopiedCode(request.params.arguments);
+
+          case 'generate_accurate_executive_summary':
+            return await this.generateAccurateExecutiveSummary(request.params.arguments);
 
           default:
             throw new McpError(
@@ -1545,7 +1616,7 @@ class GitHistoryMCPServer {
     
     branches.forEach(branch => {
       // Estimate hours based on branch complexity
-      const branchHours = this.estimateBranchHours(branch);
+      const branchHours = this.estimateBranchHoursOld(branch);
       totalHours += branchHours;
       
       branch.contributors.forEach(contributor => {
@@ -1586,7 +1657,7 @@ class GitHistoryMCPServer {
     };
   }
   
-  private estimateBranchHours(branch: FeatureBranch): number {
+  private estimateBranchHoursOld(branch: FeatureBranch): number {
     const totalLines = branch.contributors.reduce((sum, c) => sum + c.linesAdded + c.linesRemoved, 0);
     const fileCount = new Set(branch.commits.flatMap(c => c.changes.filesChanged)).size;
     
@@ -1614,7 +1685,7 @@ class GitHistoryMCPServer {
     branches.forEach(branch => {
       const date = new Date(branch.mergedDate);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const branchHours = this.estimateBranchHours(branch);
+      const branchHours = this.estimateBranchHoursOld(branch);
       
       monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + branchHours);
     });
@@ -1696,7 +1767,7 @@ ${summary.developers.map((dev: any) =>
 ${summary.branches.map((branch: any) => {
   const primaryAuthor = branch.contributors.find((c: any) => c.role === 'author') || branch.contributors[0];
   const totalLines = branch.contributors.reduce((sum: number, c: any) => sum + c.linesAdded + c.linesRemoved, 0);
-  const hours = this.estimateBranchHours(branch);
+  const hours = this.estimateBranchHoursOld(branch);
   const category = this.categorizeBranch(branch.name);
   return `| **${branch.name}** | ${primaryAuthor?.name || 'Unknown'} | ${hours} hrs | ${totalLines.toLocaleString()} | ${category} |`;
 }).join('\n')}
@@ -3221,6 +3292,256 @@ ${summary.branches.map((branch: any) => {
             text: JSON.stringify({
               success: false,
               error: `Failed to create release: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  /**
+   * Estimate development hours for feature branches with copied code analysis
+   */
+  private async estimateBranchHoursNew(args: any): Promise<any> {
+    try {
+      const { branch_names, since_days = 90 } = args;
+      
+      let branches: FeatureBranch[];
+      
+      if (branch_names && Array.isArray(branch_names)) {
+        // Get specific branches
+        const allBranches = await this.gitParser.getFeatureBranches(since_days);
+        branches = allBranches.filter((b: FeatureBranch) => branch_names.includes(b.name));
+      } else {
+        // Get all recent branches
+        branches = await this.gitParser.getFeatureBranches(since_days);
+      }
+      
+      const estimates = await this.hourEstimator.batchEstimateHours(branches);
+      const results = Array.from(estimates.entries()).map(([branchName, estimate]) => ({
+        branchName,
+        ...estimate
+      }));
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              branches_analyzed: results.length,
+              estimates: results,
+              summary: {
+                total_research_hours: results.reduce((sum, r) => sum + r.researchHours, 0),
+                total_development_hours: results.reduce((sum, r) => sum + r.developmentHours, 0),
+                total_testing_hours: results.reduce((sum, r) => sum + r.testingHours, 0),
+                total_documentation_hours: results.reduce((sum, r) => sum + r.documentationHours, 0),
+                total_review_hours: results.reduce((sum, r) => sum + r.reviewHours, 0),
+                total_hours_with_review: results.reduce((sum, r) => sum + r.totalHours, 0),
+                average_copied_percentage: results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.copiedCodePercentage, 0) / results.length * 100) : null
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to estimate branch hours: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  /**
+   * Analyze git diff to identify copied vs original code patterns
+   */
+  private async analyzeCopiedCode(args: any): Promise<any> {
+    try {
+      const { commit_hash, branch_name } = args;
+      
+      if (!commit_hash && !branch_name) {
+        throw new Error('Either commit_hash or branch_name must be provided');
+      }
+      
+      let targetCommit = commit_hash;
+      if (branch_name && !commit_hash) {
+        // Find the merge commit for the branch
+        const branches = await this.gitParser.getFeatureBranches(365); // Look back 1 year
+        const branch = branches.find((b: FeatureBranch) => b.name === branch_name);
+        if (!branch) {
+          throw new Error(`Branch '${branch_name}' not found`);
+        }
+        targetCommit = branch.mergeCommit.hash;
+      }
+      
+      // Create a mock branch for analysis
+      const mockBranch: FeatureBranch = {
+        name: branch_name || 'analysis-target',
+        mergedDate: new Date(),
+        commits: [],
+        contributors: [],
+        description: '',
+        status: 'merged' as const,
+        mergeCommit: { hash: targetCommit, message: '', author: '', date: new Date(), parentHashes: [], isMerge: false, changes: { filesChanged: [], insertions: 0, deletions: 0, fileChanges: [], summary: '' } }
+      };
+      
+      const estimate = await this.hourEstimator.estimateHours(mockBranch);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              commit_hash: targetCommit,
+              branch_name: branch_name || 'unknown',
+              analysis: {
+                copied_code_percentage: Math.round(estimate.copiedCodePercentage * 100),
+                category: estimate.category,
+                complexity: estimate.complexity,
+                estimated_original_work_hours: estimate.originalWorkHours,
+                estimated_total_hours: estimate.totalHours
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to analyze copied code: ${error.message}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+  }
+
+  /**
+   * Generate executive summary with accurate hour estimates based on copied code analysis
+   */
+  private async generateAccurateExecutiveSummary(args: any): Promise<any> {
+    try {
+      const { since_days = 180, include_pdf = true, output_path } = args;
+      
+      // Parse git history
+      const branches = await this.gitParser.getFeatureBranches(since_days);
+      
+      // Estimate hours for all branches
+      const estimates = await this.hourEstimator.batchEstimateHours(branches);
+      
+      // Generate executive summary
+      const summary = this.hourEstimator.generateExecutiveSummary(branches, estimates);
+      
+      // Create detailed branch table
+      const branchDetails = branches.map((branch: FeatureBranch) => {
+        const estimate = estimates.get(branch.name);
+        return {
+          name: branch.name,
+          author: branch.contributors.find((c: any) => c.role === 'author')?.name || 'Unknown',
+          merged_date: branch.mergedDate.toISOString().split('T')[0],
+          total_hours: estimate?.totalHours || 0,
+          development_hours: estimate?.developmentHours || 0,
+          review_hours: estimate?.reviewHours || 0,
+          category: estimate?.category || 'Unknown',
+          complexity: estimate?.complexity || 'unknown',
+          copied_percentage: Math.round((estimate?.copiedCodePercentage || 0) * 100)
+        };
+      }).sort((a: any, b: any) => b.total_hours - a.total_hours);
+      
+      const reportContent = `# KILN Development Activity Report - Accurate Hours Analysis
+## Period: ${new Date(Date.now() - since_days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]} to ${new Date().toISOString().split('T')[0]}
+
+### Executive Summary
+- **Total Development Hours**: ${summary.totalHours.toLocaleString()} hours
+- **Original Development**: ${summary.totalOriginalHours.toLocaleString()} hours (${summary.originalPercentage}%)
+- **Integration/Migration**: ${summary.totalIntegrationHours.toLocaleString()} hours (${100 - summary.originalPercentage}%)
+- **Branches Analyzed**: ${branches.length}
+
+### Top Contributors
+${summary.developerHours.slice(0, 10).map(([name, hours], i) => 
+  `${i + 1}. **${name}**: ${hours.toLocaleString()} hours`
+).join('\n')}
+
+### Monthly Distribution
+${summary.monthlyHours.map(([month, hours]) => 
+  `- **${month}**: ${hours.toLocaleString()} hours`
+).join('\n')}
+
+### Branch Details (Top 20 by Hours)
+| Branch | Author | Date | Total Hrs | Dev Hrs | Review Hrs | Category | Complexity | Copied % |
+|--------|--------|------|-----------|---------|------------|----------|------------|----------|
+${branchDetails.slice(0, 20).map((b: any) => 
+  `| ${b.name} | ${b.author} | ${b.merged_date} | ${b.total_hours} | ${b.development_hours} | ${b.review_hours} | ${b.category} | ${b.complexity} | ${b.copied_percentage}% |`
+).join('\n')}
+
+---
+*Generated on ${new Date().toISOString().split('T')[0]} with accurate hour estimation including copied code analysis*
+`;
+
+      // Write markdown file
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      
+      const outputDir = output_path || process.cwd();
+      const markdownPath = path.join(outputDir, 'accurate_executive_summary.md');
+      await fs.writeFile(markdownPath, reportContent);
+      
+      let pdfPath: string | undefined;
+      if (include_pdf) {
+        try {
+          pdfPath = path.join(outputDir, 'accurate_executive_summary.pdf');
+          await this.pdfGenerator.exportMarkdownToPdf({
+            markdownFilePath: markdownPath,
+            outputPath: pdfPath,
+            includeCharts: true,
+            pageFormat: 'A4'
+          });
+        } catch (pdfError) {
+          console.warn('PDF generation failed:', pdfError);
+        }
+      }
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              summary,
+              files_generated: {
+                markdown: markdownPath,
+                pdf: pdfPath
+              },
+              analysis: {
+                total_branches: branches.length,
+                total_hours: summary.totalHours,
+                original_development_percentage: summary.originalPercentage,
+                top_contributors: summary.developerHours.slice(0, 5)
+              }
+            }, null, 2),
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: `Failed to generate accurate executive summary: ${error.message}`,
             }, null, 2),
           },
         ],

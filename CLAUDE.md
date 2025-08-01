@@ -128,3 +128,176 @@ When implementing new features:
 3. Update types.ts with new interfaces
 4. Test via direct JSON-RPC before MCP client integration
 5. Ensure no stdout output in implementation
+
+## 🚀 Improvement Plan (2025)
+
+This section outlines the comprehensive improvement plan to enhance the git-history-mcp server for better accuracy, robustness, and adoption.
+
+### Phase 1: Type Safety & Validation (HIGH PRIORITY)
+
+#### 1.1 Implement Zod Schema Validation
+- [ ] Install Zod as a dependency (`npm install zod`)
+- [ ] Create `src/schemas/` directory for all validation schemas
+- [ ] Convert all tool parameter definitions to Zod schemas
+- [ ] Implement runtime validation for all tool inputs
+- [ ] Add type inference from Zod schemas for better TypeScript integration
+- [ ] Create validation utilities in `src/validation.ts` using Zod
+
+#### 1.2 Type System Improvements
+- [ ] Fix missing `HourEstimate` type definition in `types.ts`
+- [ ] Add comprehensive JSDoc comments to all exported types
+- [ ] Implement stricter TypeScript configuration (enable all strict checks)
+- [ ] Create type guards for runtime type checking
+- [ ] Add generic types for API responses
+
+### Phase 2: Error Handling & Reliability (HIGH PRIORITY)
+
+#### 2.1 Implement "Logic Throws, Handler Catches" Pattern
+- [ ] Refactor each tool into separate logic and registration files
+- [ ] Create `src/tools/` directory with subdirectories for each tool category
+- [ ] Implement structured error classes in `src/errors.ts`
+- [ ] Add error codes following MCP specification
+- [ ] Replace all `console.error` with proper MCP error responses
+
+#### 2.2 Logging & Debugging
+- [ ] Create stderr-based logging system for debugging
+- [ ] Add debug mode with environment variable control
+- [ ] Implement request/response logging for troubleshooting
+- [ ] Add performance metrics logging
+
+### Phase 3: Testing Suite (HIGH PRIORITY)
+
+#### 3.1 Unit Testing Setup
+- [ ] Create `src/__tests__/` directory structure
+- [ ] Write unit tests for all core modules:
+  - [ ] `git-parser.test.ts`
+  - [ ] `issue-generator.test.ts`
+  - [ ] `commit-analyzer.test.ts`
+  - [ ] `code-ownership.test.ts`
+  - [ ] `hour-estimator.test.ts`
+- [ ] Achieve minimum 80% code coverage
+- [ ] Add test fixtures for git repositories
+
+#### 3.2 Integration Testing
+- [ ] Create integration tests for MCP communication
+- [ ] Test all tools with various input scenarios
+- [ ] Add error scenario testing
+- [ ] Implement CI/CD pipeline with GitHub Actions
+
+### Phase 4: New Tools & Enhanced Functionality (MEDIUM PRIORITY)
+
+#### 4.1 Advanced Git Analysis Tools
+- [ ] `analyze_merge_conflicts`: Analyze and suggest resolutions for merge conflicts
+- [ ] `generate_dependency_graph`: Create visual dependency graphs between files
+- [ ] `analyze_technical_debt`: Identify areas of technical debt based on commit patterns
+- [ ] `generate_architecture_diagram`: Auto-generate architecture diagrams from codebase
+- [ ] `analyze_pr_review_patterns`: Analyze PR review patterns and turnaround times
+
+#### 4.2 AI-Enhanced Tools
+- [ ] `generate_code_review_checklist`: AI-powered code review checklist based on patterns
+- [ ] `suggest_refactoring_opportunities`: Identify code that needs refactoring
+- [ ] `generate_test_scenarios`: Generate test scenarios based on code changes
+- [ ] `analyze_security_patterns`: Identify potential security issues in commit history
+
+#### 4.3 Project Management Tools
+- [ ] `generate_sprint_retrospective`: Generate sprint retrospectives from git data
+- [ ] `estimate_feature_complexity`: Estimate feature complexity based on historical data
+- [ ] `generate_team_velocity_report`: Calculate and visualize team velocity
+- [ ] `analyze_deployment_patterns`: Analyze deployment frequency and patterns
+
+### Phase 5: Remote Server & OAuth Support (MEDIUM PRIORITY)
+
+#### 5.1 HTTP Transport Implementation
+- [ ] Add HTTP+SSE transport alongside STDIO
+- [ ] Implement transport abstraction layer
+- [ ] Create `src/transports/` directory with modular transports
+- [ ] Add WebSocket transport for real-time updates
+- [ ] Implement connection pooling for remote repositories
+
+#### 5.2 Authentication & Security
+- [ ] Implement OAuth 2.0 flow for GitHub/GitLab/Bitbucket
+- [ ] Add API key authentication option
+- [ ] Implement rate limiting for API calls
+- [ ] Add request signing for security
+- [ ] Create authentication middleware
+
+### Phase 6: MCP 2025 Specification Compliance (MEDIUM PRIORITY)
+
+#### 6.1 Tool Annotations
+- [ ] Add tool annotations to all existing tools:
+  - [ ] `readOnlyHint` for analysis tools
+  - [ ] `openWorldHint` for tools that access external services
+  - [ ] `costHint` for expensive operations
+- [ ] Implement metadata for better tool discovery
+- [ ] Add tool categories and tags
+
+#### 6.2 Resource & Prompt Support
+- [ ] Implement MCP Resources for read-only data access
+- [ ] Create prompts for common workflows
+- [ ] Add resource caching for performance
+- [ ] Implement resource versioning
+
+### Phase 7: Documentation & Developer Experience (MEDIUM PRIORITY)
+
+#### 7.1 Comprehensive Documentation
+- [ ] Create `docs/` directory with structured documentation
+- [ ] Write tool-specific documentation with examples
+- [ ] Add architecture decision records (ADRs)
+- [ ] Create troubleshooting guide
+- [ ] Add migration guide from v1 to v2
+
+#### 7.2 Developer Tools
+- [ ] Create CLI for server management
+- [ ] Add development mode with hot reloading
+- [ ] Implement tool scaffolding generator
+- [ ] Create VS Code extension for easier development
+- [ ] Add Docker support for containerized deployment
+
+### Phase 8: Performance & Scalability (LOW PRIORITY)
+
+#### 8.1 Performance Optimization
+- [ ] Implement caching layer for git operations
+- [ ] Add parallel processing for large repositories
+- [ ] Optimize memory usage for large datasets
+- [ ] Implement streaming for large responses
+- [ ] Add repository indexing for faster queries
+
+#### 8.2 Scalability Features
+- [ ] Add support for distributed git repositories
+- [ ] Implement queue-based processing for long operations
+- [ ] Add horizontal scaling support
+- [ ] Create monitoring and alerting system
+- [ ] Implement graceful shutdown handling
+
+### Implementation Order
+
+1. **Immediate Actions** (Week 1-2):
+   - Commit pending changes (`hour-estimator.ts`, modified files)
+   - Implement Zod validation for existing tools
+   - Fix type safety issues
+   - Add basic error handling improvements
+
+2. **Short Term** (Week 3-4):
+   - Create comprehensive test suite
+   - Implement "Logic Throws, Handler Catches" pattern
+   - Add tool annotations for MCP 2025 spec
+
+3. **Medium Term** (Month 2):
+   - Add new analysis tools
+   - Implement HTTP transport
+   - Create developer documentation
+
+4. **Long Term** (Month 3+):
+   - OAuth implementation
+   - Performance optimizations
+   - Advanced AI-enhanced tools
+
+### Success Metrics
+
+- **Code Quality**: 80%+ test coverage, zero TypeScript errors
+- **Reliability**: <0.1% error rate in production
+- **Performance**: <100ms response time for basic operations
+- **Adoption**: 1000+ GitHub stars, 50+ active contributors
+- **Documentation**: 100% API coverage, <5 min onboarding time
+
+This improvement plan transforms git-history-mcp into a production-ready, enterprise-grade MCP server that sets the standard for git analysis tools in the AI ecosystem.

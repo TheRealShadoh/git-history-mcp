@@ -360,3 +360,16 @@ export interface HistoryRewriteResult {
   warnings: string[];
   duration: number;
 }
+
+export interface HourEstimate {
+  researchHours: number;
+  developmentHours: number;
+  testingHours: number;
+  documentationHours: number;
+  reviewHours: number;
+  totalHours: number;
+  complexity: 'low' | 'medium' | 'high';
+  category: string;
+  copiedCodePercentage: number;
+  originalWorkHours: number;
+}
